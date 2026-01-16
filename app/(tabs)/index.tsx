@@ -3,6 +3,7 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Dimensions,
   FlatList,
   Image,
   Modal,
@@ -14,6 +15,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { carService } from '../src/services/carService';
+
+const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -30,6 +33,117 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
+  },
+  carCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    width: width - 48,
+    marginHorizontal: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  carImageContainer: {
+    position: 'relative',
+    height: 280,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  carImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  carImagePlaceholder: {
+    fontSize: 72,
+  },
+  likeButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 25,
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  navigationButton: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -50,
+    width: 100,
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  leftNavButton: {
+    left: 0,
+  },
+  rightNavButton: {
+    right: 0,
+  },
+  navArrowText: {
+    fontSize: 80,
+    fontWeight: '200',
+    color: 'rgba(255, 255, 255, 0.9)',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  carInfo: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+  },
+  carHeader: {
+    marginBottom: 12,
+  },
+  carBrand: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 6,
+  },
+  carModel: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 16,
+  },
+  carDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  carSpecs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    flex: 1,
+  },
+  carSpecItem: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  carSpecSeparator: {
+    fontSize: 13,
+    color: '#cbd5e1',
+    marginHorizontal: 2,
+  },
+  carPrice: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#3b82f6',
+    textAlign: 'right',
   },
   logo: {
     fontSize: 24,
@@ -117,7 +231,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 24,
     paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingHorizontal: 5,
     flexDirection: 'row',
     marginTop: 20,
     marginBottom: 20,
@@ -133,6 +247,59 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#1f2937',
+  },
+  heroSection: {
+    marginHorizontal: 24,
+    marginTop: 12,
+    marginBottom: 10,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#ffff',
+    position: 'relative',
+    height: 250,
+  },
+  heroContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 24,
+    justifyContent: 'center',
+  },
+  heroImage: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: '50%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 8,
+    maxWidth: '50%',
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: '#475569',
+    marginBottom: 20,
+    maxWidth: '50%',
+  },
+  heroButton: {
+    backgroundColor: '#10b981',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 20,
+    alignSelf: 'flex-start',
+  },
+  heroButtonText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
@@ -191,39 +358,26 @@ const styles = StyleSheet.create({
   },
   categoriesScroll: {
     paddingLeft: 24,
+    paddingRight: 24,
   },
   categoryCard: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    width: 140,
-    height: 140,
-    marginBottom: 5,
-    marginRight: 12,
+    marginRight: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: '#f3f4f6',
-  },
-  categoryIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#f0f4ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  categoryIcon: {
-    fontSize: 32,
+    borderColor: '#e5e7eb',
   },
   categoryName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1f2937',
     textAlign: 'center',
@@ -234,105 +388,33 @@ const styles = StyleSheet.create({
   },
   latestCarsSectionTitle: {
     paddingHorizontal: 24,
-    marginBottom: 16,
+    marginBottom: 24,
   },
   latestCarsTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1f2937',
   },
-  latestCarsScroll: {
-    paddingLeft: 24,
-  },
-  carCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginRight: 16,
-    width: 280,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  carImageContainer: {
+  carouselContainer: {
     position: 'relative',
-    height: 200,
-    backgroundColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginBottom: 24,
   },
-  carImagePlaceholder: {
-    fontSize: 72,
-  },
-  carImage: {
-    width: '100%',
-    height: '100%',
-  },
-  likeButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  priceTag: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  priceTagText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  firstHandBadge: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    backgroundColor: '#10b981',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  firstHandBadgeText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  carInfo: {
-    padding: 16,
-  },
-  carName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 8,
-  },
-  carModel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 12,
-  },
-  carDetails: {
+  paginationDots: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    fontSize: 12,
-    color: '#9ca3af',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#cbd5e1',
+  },
+  activeDot: {
+    width: 24,
+    backgroundColor: '#3b82f6',
   },
 });
 
@@ -343,8 +425,8 @@ export default function HomeScreen() {
   const [latestCars, setLatestCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState({});
+  const [currentCarIndex, setCurrentCarIndex] = useState(0);
 
-  // Load cars when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadCars();
@@ -371,13 +453,13 @@ export default function HomeScreen() {
   };
 
   const categories = [
-    { id: 1, name: 'Citadine', icon: '🚗' },
-    { id: 2, name: '4x4 et SUV', icon: '🚙' },
-    { id: 3, name: 'Berline compacte', icon: '🚕' },
-    { id: 4, name: 'Berline', icon: '🚘' },
-    { id: 5, name: 'Monospace', icon: '🚐' },
-    { id: 6, name: 'Break', icon: '🚗' },
-    { id: 7, name: 'Utilitaire', icon: '🚚' },
+    { id: 1, name: 'Citadine' },
+    { id: 2, name: '4x4 et SUV' },
+    { id: 3, name: 'Berline compacte' },
+    { id: 4, name: 'Berline' },
+    { id: 5, name: 'Monospace' },
+    { id: 6, name: 'Break' },
+    { id: 7, name: 'Utilitaire' },
   ];
 
   const handlePressIn = () => {
@@ -403,70 +485,122 @@ export default function HomeScreen() {
     navigation.navigate(screen);
   };
 
+  const handlePrevCar = () => {
+    if (currentCarIndex > 0) {
+      setCurrentCarIndex(currentCarIndex - 1);
+    }
+  };
+
+  const handleNextCar = () => {
+    if (currentCarIndex < latestCars.length - 1) {
+      setCurrentCarIndex(currentCarIndex + 1);
+    }
+  };
+
   const renderCategoryCard = ({ item }) => (
     <TouchableOpacity style={styles.categoryCard} activeOpacity={0.7}>
-      <View style={styles.categoryIconContainer}>
-        <Text style={styles.categoryIcon}>{item.icon}</Text>
-      </View>
       <Text style={styles.categoryName}>{item.name}</Text>
     </TouchableOpacity>
   );
 
-  const renderCarCard = ({ item }) => {
-    // Get first image from car_images array
+  const renderCurrentCar = () => {
+    if (loading || latestCars.length === 0) return null;
+
+    const item = latestCars[currentCarIndex];
     const firstImage = item.car_images && item.car_images.length > 0 
       ? item.car_images[0].image_url 
       : null;
 
     return (
-      <TouchableOpacity 
-        onPress={() => navigation.navigate('product-detail', { carId: item.id })}
-        activeOpacity={0.8}
-      >
-        <View style={styles.carCard}>
-          <View style={styles.carImageContainer}>
-            {firstImage ? (
-              <Image source={{ uri: firstImage }} style={styles.carImage} />
-            ) : (
-              <Text style={styles.carImagePlaceholder}>🚗</Text>
-            )}
-            <TouchableOpacity 
-              style={styles.likeButton}
-              onPress={() => toggleLike(item.id)}
-            >
-              <Text style={{ fontSize: 20, color: '#ef4444' }}>
-                {liked[item.id] ? '♥' : '♡'}
-              </Text>
-            </TouchableOpacity>
-            <View style={styles.priceTag}>
-              <Text style={styles.priceTagText}>{item.price} €</Text>
+      <View style={styles.carouselContainer}>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('product-detail', { carId: item.id })}
+          activeOpacity={0.95}
+        >
+          <View style={styles.carCard}>
+            <View style={styles.carImageContainer}>
+              {firstImage ? (
+                <Image source={{ uri: firstImage }} style={styles.carImage} />
+              ) : (
+                <Text style={styles.carImagePlaceholder}>🚗</Text>
+              )}
+              
+              <TouchableOpacity 
+                style={styles.likeButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  toggleLike(item.id);
+                }}
+              >
+                <Text style={{ fontSize: 24, color: liked[item.id] ? '#ef4444' : '#cbd5e1' }}>
+                  {liked[item.id] ? '♥' : '♡'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Left Navigation Arrow */}
+              {currentCarIndex > 0 && (
+                <TouchableOpacity 
+                  style={[styles.navigationButton, styles.leftNavButton]}
+                  onPress={handlePrevCar}
+                >
+                  <Text style={styles.navArrowText}>‹</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Right Navigation Arrow */}
+              {currentCarIndex < latestCars.length - 1 && (
+                <TouchableOpacity 
+                  style={[styles.navigationButton, styles.rightNavButton]}
+                  onPress={handleNextCar}
+                >
+                  <Text style={styles.navArrowText}>›</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            {item.first_hand && (
-              <View style={styles.firstHandBadge}>
-                <Text style={styles.firstHandBadgeText}>🔖 PREMIÈRE MAIN</Text>
+
+            <View style={styles.carInfo}>
+              <View style={styles.carHeader}>
+                <Text style={styles.carBrand}>
+                  {item.brand} {item.model?.split(' - ')[0]}
+                </Text>
+                <Text style={styles.carModel}>{item.model}</Text>
               </View>
-            )}
-          </View>
-          <View style={styles.carInfo}>
-            <Text style={styles.carName}>
-              {item.brand} {item.model?.split(' - ')[0]}
-            </Text>
-            <Text style={styles.carModel}>{item.model}</Text>
-            <View style={styles.carDetails}>
-              <Text>{item.year}</Text>
-              <Text>{item.mileage} km</Text>
-              <Text>{item.fuel_type}</Text>
-              <Text>{item.transmission}</Text>
+
+              <View style={styles.carDetailsRow}>
+                <View style={styles.carSpecs}>
+                  <Text style={styles.carSpecItem}>{item.year}</Text>
+                  <Text style={styles.carSpecSeparator}>|</Text>
+                  <Text style={styles.carSpecItem}>{item.mileage} km</Text>
+                  <Text style={styles.carSpecSeparator}>|</Text>
+                  <Text style={styles.carSpecItem}>{item.fuel_type}</Text>
+                  <Text style={styles.carSpecSeparator}>|</Text>
+                  <Text style={styles.carSpecItem}>{item.transmission}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.carPrice}>{item.price} €</Text>
             </View>
           </View>
+        </TouchableOpacity>
+
+        {/* Pagination Dots */}
+        <View style={styles.paginationDots}>
+          {latestCars.map((_, index) => (
+            <View 
+              key={index}
+              style={[
+                styles.dot,
+                index === currentCarIndex && styles.activeDot
+              ]}
+            />
+          ))}
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.iconButton}
@@ -496,7 +630,6 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Main Content */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <View style={styles.homePadding}>
           <Text style={styles.mainTitle}>Trouvez votre prochaine voiture chez nous !</Text>
@@ -522,7 +655,28 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Categories Section */}
+        <View style={styles.heroSection}>
+          <Image 
+            source={require('../../assets/images/background.png')}
+            style={styles.heroImage}
+          />
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>
+              Vous souhaitez vendre votre voiture ?
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              Pas de problème on est là !
+            </Text>
+            <TouchableOpacity 
+              style={styles.heroButton}
+              onPress={() => navigation.navigate('sell')}
+              activeOpacity={0.8}
+            > 
+              <Text style={styles.heroButtonText}>Vendre ma voiture</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.categoriesSection}>
           <View style={styles.categoriesTitleContainer}>
             <Text style={styles.categoriesTitle}>Nos catégories</Text>
@@ -541,32 +695,23 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Latest Cars Section */}
         <View style={styles.latestCarsSection}>
           <View style={styles.latestCarsSectionTitle}>
             <Text style={styles.latestCarsTitle}>
               Nos dernières voitures
             </Text>
           </View>
+          
           {loading ? (
             <View style={{ paddingVertical: 40, alignItems: 'center' }}>
               <ActivityIndicator size="large" color="#3b82f6" />
             </View>
           ) : (
-            <FlatList
-              data={latestCars}
-              renderItem={renderCarCard}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              scrollEventThrottle={16}
-              contentContainerStyle={styles.latestCarsScroll}
-            />
+            renderCurrentCar()
           )}
         </View>
       </ScrollView>
 
-      {/* Side Menu Modal */}
       <Modal
         visible={menuVisible}
         transparent

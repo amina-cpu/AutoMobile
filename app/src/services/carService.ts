@@ -1,12 +1,19 @@
 import { supabase } from '../config/supabase';
 
 export const carService = {
-  // Get all available cars
+  // Get all available cars with images
   async getAllCars() {
     try {
       const { data, error } = await supabase
         .from('cars')
-        .select('*')
+        .select(`
+          *,
+          car_images (
+            id,
+            image_url,
+            display_order
+          )
+        `)
         .eq('status', 'available')
         .order('created_at', { ascending: false });
       
@@ -18,34 +25,61 @@ export const carService = {
     }
   },
 
-  // Get latest cars (for homepage)
+  // Get latest cars (for homepage) with images
   async getLatestCars(limit = 10) {
     try {
       const { data, error } = await supabase
         .from('cars')
-        .select('*')
+        .select(`
+          *,
+          car_images (
+            id,
+            image_url,
+            display_order
+          )
+        `)
         .eq('status', 'available')
         .order('created_at', { ascending: false })
         .limit(limit);
       
       if (error) throw error;
-      return data || [];
+      
+      // Sort images by display_order for each car
+      const carsWithSortedImages = data?.map(car => ({
+        ...car,
+        car_images: car.car_images?.sort((a, b) => a.display_order - b.display_order) || []
+      })) || [];
+      
+      return carsWithSortedImages;
     } catch (error) {
       console.error('Error fetching latest cars:', error);
       throw error;
     }
   },
 
-  // Get car by ID - SIMPLE VERSION (no maintenance history)
+  // Get car by ID with images
   async getCarById(carId) {
     try {
       const { data, error } = await supabase
         .from('cars')
-        .select('*')
+        .select(`
+          *,
+          car_images (
+            id,
+            image_url,
+            display_order
+          )
+        `)
         .eq('id', carId)
         .single();
       
       if (error) throw error;
+      
+      // Sort images by display_order
+      if (data && data.car_images) {
+        data.car_images = data.car_images.sort((a, b) => a.display_order - b.display_order);
+      }
+      
       return data;
     } catch (error) {
       console.error('Error fetching car:', error);
@@ -53,10 +87,20 @@ export const carService = {
     }
   },
 
-  // Search cars with filters
+  // Search cars with filters and images
   async searchCars(filters) {
     try {
-      let query = supabase.from('cars').select('*').eq('status', 'available');
+      let query = supabase
+        .from('cars')
+        .select(`
+          *,
+          car_images (
+            id,
+            image_url,
+            display_order
+          )
+        `)
+        .eq('status', 'available');
       
       if (filters.brand) {
         query = query.ilike('brand', `%${filters.brand}%`);
@@ -77,7 +121,14 @@ export const carService = {
       const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data || [];
+      
+      // Sort images by display_order for each car
+      const carsWithSortedImages = data?.map(car => ({
+        ...car,
+        car_images: car.car_images?.sort((a, b) => a.display_order - b.display_order) || []
+      })) || [];
+      
+      return carsWithSortedImages;
     } catch (error) {
       console.error('Error searching cars:', error);
       throw error;
@@ -114,16 +165,36 @@ export const carService = {
     }
   },
 
-  // Get user's favorite cars
+  // Get user's favorite cars with images
   async getFavorites(userId) {
     try {
       const { data, error } = await supabase
         .from('favorites')
-        .select('cars(*)')
+        .select(`
+          *,
+          cars (
+            *,
+            car_images (
+              id,
+              image_url,
+              display_order
+            )
+          )
+        `)
         .eq('user_id', userId);
       
       if (error) throw error;
-      return data || [];
+      
+      // Sort images by display_order for each car
+      const favoritesWithSortedImages = data?.map(fav => ({
+        ...fav,
+        cars: {
+          ...fav.cars,
+          car_images: fav.cars.car_images?.sort((a, b) => a.display_order - b.display_order) || []
+        }
+      })) || [];
+      
+      return favoritesWithSortedImages;
     } catch (error) {
       console.error('Error fetching favorites:', error);
       throw error;
@@ -143,6 +214,27 @@ export const carService = {
       return data;
     } catch (error) {
       console.error('Error adding car:', error);
+      throw error;
+    }
+  },
+
+  // Add car image
+  async addCarImage(carId, imageUrl, displayOrder = 0) {
+    try {
+      const { data, error } = await supabase
+        .from('car_images')
+        .insert([{
+          car_id: carId,
+          image_url: imageUrl,
+          display_order: displayOrder
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error adding car image:', error);
       throw error;
     }
   },
