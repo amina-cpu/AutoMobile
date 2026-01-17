@@ -1,641 +1,604 @@
-import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import * as Location from 'expo-location';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
-    FlatList,
     Image,
     ScrollView,
+    StatusBar,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
-import { supabase } from '../src/config/supabase';
 import { carService } from '../src/services/carService';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4ff',
+    backgroundColor: '#f5f5f5',
   },
-  header: {
-    backgroundColor: '#fff',
+  headerContainer: {
+    backgroundColor: '#1085a8ff',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-    marginTop: 40,
+    paddingTop: 50,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1085a8ff',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 12,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#1f2937',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-  },
-  inputMultiline: {
-    height: 100,
-    textAlignVertical: 'top',
-    paddingTop: 12,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  rowInput: {
-    flex: 1,
-  },
-  picker: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#1f2937',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-  },
-  imageSection: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-  },
-  imageSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 12,
-  },
-  imageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 12,
-  },
-  imageBox: {
-    width: '30%',
-    aspectRatio: 1,
-    backgroundColor: '#f0f4ff',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d0d5e0',
-    borderStyle: 'dashed',
-  },
-  imageBoxFilled: {
-    borderStyle: 'solid',
-    borderColor: '#3b82f6',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
-  },
-  removeButton: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: '#ef4444',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  addImageButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  addImageButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  submitButton: {
-    backgroundColor: '#10b981',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748b',
+  locationLabel: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
     marginBottom: 4,
   },
-  errorText: {
-    color: '#ef4444',
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  locationTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  notificationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  notificationIconContainer: {
+    position: 'relative',
+  },
+  bellIcon: {
+    width: 20,
+    height: 22,
+  },
+  bellTop: {
+    width: 16,
+    height: 16,
+    borderWidth: 2,
+    borderColor: '#FFF',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderBottomWidth: 0,
+    marginLeft: 2,
+  },
+  bellBottom: {
+    width: 20,
+    height: 4,
+    backgroundColor: '#FFFF',
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+    marginTop: -1,
+  },
+  bellClapper: {
+    width: 4,
+    height: 4,
+    backgroundColor: '#FFFF',
+    borderRadius: 2,
+    position: 'absolute',
+    bottom: 2,
+    left: 8,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ef4444',
+  },
+  searchBox: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchIcon: {
+    fontSize: 20,
+    color: '#93C5FD',
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#333',
+  },
+  filterButton: {
+    backgroundColor: '#fff',
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterIcon: {
+    fontSize: 24,
+    color: '#1085a8ff',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  seeAllText: {
+    fontSize: 15,
+    color: '#1085a8ff',
+    fontWeight: '600',
+  },
+  brandsContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 8,
+    marginLeft: 50,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  brandCard: {
+    width: '23%',
+    aspectRatio: 1,
+    backgroundColor: '#fff',
+    borderRadius: 40,
+    borderWidth: 2,
+    marginLeft: 1,
+    marginRight: 1,
+    borderColor: '#1085a8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  brandLogo: {
+    width: 50,
+    height: 50,
+    marginBottom: 6,
+    resizeMode: 'contain',
+  },
+  brandName: {
+    fontSize: 13,
+    color: '#1085a8ff',
+    fontWeight: '500',
+  },
+  carListingContainer: {
+    padding: 20,
+    paddingBottom: 100,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+  carCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  carImageContainer: {
+    position: 'relative',
+    height: 200,
+    backgroundColor: '#f9fafb',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  carImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  carImagePlaceholder: {
+    fontSize: 72,
+  },
+  dealBadge: {
+    position: 'absolute',
+    top: 160,
+    left: 12,
+    backgroundColor: '#1085a8ff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dealBadgeIcon: {
+    fontSize: 14,
+  },
+  dealBadgeText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  priceTag: {
+    position: 'absolute',
+    top: 170,
+    right: 12,
+    backgroundColor: '#f0f4f8',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#1085a8ff',
+  },
+  priceTagText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1085a8ff',
+  },
+  likeButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  likeIcon: {
+    fontSize: 20,
+  },
+  carInfo: {
+    padding: 16,
+  },
+  carType: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  carName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 12,
+  },
+  carDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  specItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  specText: {
     fontSize: 12,
-    marginTop: 4,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  resultsCount: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginVertical: 12,
   },
 });
 
-export default function SellScreen() {
-  const [loading, setLoading] = useState(false);
-  const [images, setImages] = useState([]);
-  const [formData, setFormData] = useState({
-    brand: '',
-    model: '',
-    year: '',
-    price: '',
-    fuel_type: 'Essence',
-    transmission: 'Manuelle',
-    mileage: '',
-    description: '',
-    condition: 'Bon',
-    first_hand: false,
-  });
+export default function BuyScreen() {
+  const navigation = useNavigation();
+  const [cars, setCars] = useState([]);
+  const [filteredCars, setFilteredCars] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [liked, setLiked] = useState({});
+  const [location, setLocation] = useState('Chargement...');
 
-  const fuelTypes = ['Essence', 'Diesel', 'Hybrid', 'Électrique'];
-  const transmissions = ['Manuelle', 'Automatique'];
-  const conditions = ['Excellent', 'Bon', 'Acceptable'];
+  useEffect(() => {
+    getUserLocation();
+  }, []);
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const pickImage = async () => {
+  const getUserLocation = async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        setLocation('error');
+        return;
+      }
+
+      let currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        const imageUri = result.assets[0].uri;
-        setImages(prev => [...prev, imageUri]);
+      const { latitude, longitude } = currentLocation.coords;
+
+      let reverseGeocode = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
+
+      if (reverseGeocode && reverseGeocode.length > 0) {
+        const address = reverseGeocode[0];
+        const city = address.city || address.subregion || address.region || 'Algérie';
+        const country = address.country || 'Algérie';
+        setLocation(`${city}, ${country}`);
+      } else {
+        setLocation('error');
       }
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
+      console.error('Erreur de localisation:', error);
+      setLocation('error');
     }
   };
 
-  const removeImage = (index) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-  };
+  useFocusEffect(
+    useCallback(() => {
+      loadCars();
+    }, [])
+  );
 
-  const uploadImages = async (carId) => {
-    const uploadedImages = [];
-
-    for (let i = 0; i < images.length; i++) {
-      try {
-        const imageUri = images[i];
-        const fileName = `car-${carId}-${i}-${Date.now()}.jpg`;
-        const imagePath = `cars/${carId}/${fileName}`;
-
-        // Read file as base64
-        const base64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          fetch(imageUri)
-            .then(res => res.blob())
-            .then(blob => {
-              reader.readAsDataURL(blob);
-              reader.onload = () => {
-                const base64String = reader.result.split(',')[1];
-                resolve(base64String);
-              };
-            })
-            .catch(reject);
-        });
-
-        // Upload to Supabase Storage
-        const { data, error: uploadError } = await supabase.storage
-          .from('car-images')
-          .upload(imagePath, decode(base64), {
-            contentType: 'image/jpeg',
-          });
-
-        if (uploadError) throw uploadError;
-
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('car-images')
-          .getPublicUrl(imagePath);
-
-        // Save image metadata to database
-        const { error: dbError } = await supabase
-          .from('car_images')
-          .insert([{
-            car_id: carId,
-            image_url: publicUrl,
-            display_order: i,
-          }]);
-
-        if (dbError) throw dbError;
-
-        uploadedImages.push(publicUrl);
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        throw error;
-      }
-    }
-
-    return uploadedImages;
-  };
-
-  // Helper function to decode base64
-  const decode = (base64String) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    let bitmap = '';
-    
-    for (let i = 0; i < base64String.length; i++) {
-      const char = base64String.charAt(i);
-      const index = chars.indexOf(char);
-      bitmap += index.toString(2).padStart(6, '0');
-    }
-
-    const bytes = [];
-    for (let i = 0; i < bitmap.length; i += 8) {
-      bytes.push(parseInt(bitmap.substr(i, 8), 2));
-    }
-
-    return new Uint8Array(bytes);
-  };
-
-  const validateForm = () => {
-    if (!formData.brand.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer la marque');
-      return false;
-    }
-    if (!formData.model.trim()) {
-      Alert.alert('Erreur', 'Veuillez entrer le modèle');
-      return false;
-    }
-    if (!formData.year) {
-      Alert.alert('Erreur', 'Veuillez entrer l\'année');
-      return false;
-    }
-    if (!formData.price) {
-      Alert.alert('Erreur', 'Veuillez entrer le prix');
-      return false;
-    }
-    if (!formData.mileage) {
-      Alert.alert('Erreur', 'Veuillez entrer le kilométrage');
-      return false;
-    }
-    if (images.length === 0) {
-      Alert.alert('Erreur', 'Veuillez ajouter au moins une image');
-      return false;
-    }
-    return true;
-  };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-
+  const loadCars = async () => {
     try {
       setLoading(true);
-
-      // Get current user (optional - use demo user if not logged in)
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || '00000000-0000-0000-0000-000000000001'; // Demo user ID
-
-      // Create car listing
-      const carData = {
-        seller_id: userId,
-        brand: formData.brand,
-        model: formData.model,
-        year: parseInt(formData.year),
-        price: parseFloat(formData.price),
-        fuel_type: formData.fuel_type,
-        transmission: formData.transmission,
-        mileage: parseInt(formData.mileage),
-        description: formData.description,
-        condition: formData.condition,
-        first_hand: formData.first_hand,
-        status: 'available',
-      };
-
-      const newCar = await carService.addCar(carData);
-
-      // Upload images
-      await uploadImages(newCar.id);
-
-      Alert.alert('Succès', 'Voiture ajoutée avec succès!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Reset form
-            setFormData({
-              brand: '',
-              model: '',
-              year: '',
-              price: '',
-              fuel_type: 'Essence',
-              transmission: 'Manuelle',
-              mileage: '',
-              description: '',
-              condition: 'Bon',
-              first_hand: false,
-            });
-            setImages([]);
-          },
-        },
-      ]);
+      const data = await carService.getAllCars();
+      setCars(data);
+      setFilteredCars(data);
     } catch (error) {
-      console.error('Error:', error);
-      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
+      console.error('Error loading cars:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSearch = (text) => {
+    setSearchQuery(text);
+    
+    if (!text.trim()) {
+      setFilteredCars(cars);
+      return;
+    }
+
+    const query = text.toLowerCase();
+    const filtered = cars.filter(car => {
+      const brand = car.brand?.toLowerCase() || '';
+      const model = car.model?.toLowerCase() || '';
+      const year = car.year?.toString() || '';
+      const fuelType = car.fuel_type?.toLowerCase() || '';
+      const transmission = car.transmission?.toLowerCase() || '';
+
+      return (
+        brand.includes(query) ||
+        model.includes(query) ||
+        year.includes(query) ||
+        fuelType.includes(query) ||
+        transmission.includes(query)
+      );
+    });
+
+    setFilteredCars(filtered);
+  };
+
+  const toggleLike = (carId) => {
+    setLiked(prev => ({
+      ...prev,
+      [carId]: !prev[carId]
+    }));
+  };
+
+  const brands = [
+    { name: 'BMW', image: 'https://logo.clearbit.com/bmw.com' },
+    { name: 'Toyota', image: 'https://logo.clearbit.com/toyota.com' },
+    { name: 'Mercedes', image: 'https://logo.clearbit.com/mercedes-benz.com' },
+    { name: 'Tesla', image: 'https://logo.clearbit.com/tesla.com' },
+    { name: 'Tesla', image: 'https://logo.clearbit.com/tesla.com' },
+  ];
+
+  const renderCarCard = ({ item }) => {
+    const firstImage = item.car_images && item.car_images.length > 0 
+      ? item.car_images[0].image_url 
+      : null;
+
+    return (
+      <TouchableOpacity
+        onPress={() => navigation.navigate('product-detail', { carId: item.id })}
+        activeOpacity={0.7}
+      >
+        <View style={styles.carCard}>
+          <View style={styles.carImageContainer}>
+            {firstImage ? (
+              <Image source={{ uri: firstImage }} style={styles.carImage} />
+            ) : (
+              <Text style={styles.carImagePlaceholder}>🚗</Text>
+            )}
+            
+            <View style={styles.dealBadge}>
+              <Text style={styles.dealBadgeText}>TRÈS BONNE AFFAIRE</Text>
+            </View>
+
+            <View style={styles.priceTag}>
+              <Text style={styles.priceTagText}>{item.price} €</Text>
+            </View>
+
+            <TouchableOpacity 
+              style={styles.likeButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                toggleLike(item.id);
+              }}
+            >
+              <Text style={styles.likeIcon}>
+                {liked[item.id] ? '❤️' : '🤍'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.carInfo}>
+            <Text style={styles.carName}>
+              {item.brand} {item.model?.split(' - ')[0]}
+            </Text>
+            
+            <View style={styles.carDetailsRow}>
+              <View style={styles.specItem}>
+                <Text style={styles.specText}>{item.year}</Text>
+              </View>
+              <View style={styles.specItem}>
+                <Text style={styles.specText}>{item.mileage} km</Text>
+              </View>
+              <View style={styles.specItem}>
+                <Text style={styles.specText}>{item.fuel_type}</Text>
+              </View>
+              <View style={styles.specItem}>
+                <Text style={styles.specText}>{item.transmission}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Vendre votre voiture</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#1085a8ff" translucent={true} />
+      
+      <View style={styles.headerContainer}>
+        <Text style={styles.locationLabel}></Text>
+        <View style={styles.locationRow}>
+          <View style={styles.locationTextRow}>
+            <Text style={styles.locationText}>{location} ▼</Text>
+          </View>
+          <TouchableOpacity>
+            <View style={styles.notificationIconContainer}>
+              <View style={styles.bellIcon}>
+                <View style={styles.bellTop} />
+                <View style={styles.bellBottom} />
+                <View style={styles.bellClapper} />
+              </View>
+              <View style={styles.notificationDot} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.searchRow}>
+          <View style={styles.searchBox}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search"
+              placeholderTextColor="#9ca3af"
+              value={searchQuery}
+              onChangeText={handleSearch}
+            />
+          </View>
+          <TouchableOpacity style={styles.filterButton}>
+            <Text style={styles.filterIcon}>☰</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Basic Info Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informations de base</Text>
-          
-          <Text style={styles.label}>Marque *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="ex: Toyota, BMW, Mercedes"
-            value={formData.brand}
-            onChangeText={(value) => handleInputChange('brand', value)}
-            editable={!loading}
-          />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Marques</Text>
+        </View>
 
-          <Text style={styles.label}>Modèle *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="ex: Yaris, X5, C-Class"
-            value={formData.model}
-            onChangeText={(value) => handleInputChange('model', value)}
-            editable={!loading}
-          />
-
-          <View style={styles.row}>
-            <View style={styles.rowInput}>
-              <Text style={styles.label}>Année *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="2020"
-                value={formData.year}
-                onChangeText={(value) => handleInputChange('year', value)}
-                keyboardType="numeric"
-                editable={!loading}
-              />
-            </View>
-            <View style={styles.rowInput}>
-              <Text style={styles.label}>Prix (€) *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="15000"
-                value={formData.price}
-                onChangeText={(value) => handleInputChange('price', value)}
-                keyboardType="decimal-pad"
-                editable={!loading}
-              />
-            </View>
+        <View style={styles.brandsContainer}>
+          <View style={styles.brandRow}>
+            {brands.map((brand, index) => (
+              <TouchableOpacity key={index} style={styles.brandCard}>
+                <Text style={styles.brandName}>{brand.name}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
-        {/* Technical Info Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informations techniques</Text>
-
-          <Text style={styles.label}>Kilométrage (km) *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="50000"
-            value={formData.mileage}
-            onChangeText={(value) => handleInputChange('mileage', value)}
-            keyboardType="numeric"
-            editable={!loading}
-          />
-
-          <Text style={styles.label}>Carburant</Text>
-          <View style={styles.picker}>
-            <FlatList
-              data={fuelTypes}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => handleInputChange('fuel_type', item)}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                    backgroundColor: formData.fuel_type === item ? '#eff6ff' : '#fff',
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: formData.fuel_type === item ? '#3b82f6' : '#1f2937',
-                      fontWeight: formData.fuel_type === item ? '600' : '400',
-                    }}
-                  >
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              keyExtractor={(item) => item}
-              scrollEnabled={false}
-            />
-          </View>
-
-          <Text style={styles.label}>Transmission</Text>
-          <View style={styles.picker}>
-            <FlatList
-              data={transmissions}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => handleInputChange('transmission', item)}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                    backgroundColor: formData.transmission === item ? '#eff6ff' : '#fff',
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: formData.transmission === item ? '#3b82f6' : '#1f2937',
-                      fontWeight: formData.transmission === item ? '600' : '400',
-                    }}
-                  >
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              keyExtractor={(item) => item}
-              scrollEnabled={false}
-            />
-          </View>
-
-          <Text style={styles.label}>État de la voiture</Text>
-          <View style={styles.picker}>
-            <FlatList
-              data={conditions}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => handleInputChange('condition', item)}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 12,
-                    backgroundColor: formData.condition === item ? '#eff6ff' : '#fff',
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: formData.condition === item ? '#3b82f6' : '#1f2937',
-                      fontWeight: formData.condition === item ? '600' : '400',
-                    }}
-                  >
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              keyExtractor={(item) => item}
-              scrollEnabled={false}
-            />
-          </View>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Voitures Populaire</Text>
         </View>
 
-        {/* Description Section */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Description (optionnel)</Text>
-          <TextInput
-            style={[styles.input, styles.inputMultiline]}
-            placeholder="Décrivez l'état, les équipements, l'historique..."
-            value={formData.description}
-            onChangeText={(value) => handleInputChange('description', value)}
-            multiline
-            editable={!loading}
-          />
-        </View>
-
-        {/* Images Section */}
-        <View style={styles.section}>
-          <View style={styles.imageSection}>
-            <Text style={styles.imageSectionTitle}>
-              Photos ({images.length})
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#1E90FF" />
+          </View>
+        ) : filteredCars.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {searchQuery 
+                ? `No vehicles found for "${searchQuery}"`
+                : 'No vehicles available'
+              }
             </Text>
-
-            {images.length > 0 && (
-              <View style={styles.imageGrid}>
-                {images.map((imageUri, index) => (
-                  <View key={index} style={[styles.imageBox, styles.imageBoxFilled]}>
-                    <Image source={{ uri: imageUri }} style={styles.image} />
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => removeImage(index)}
-                      disabled={loading}
-                    >
-                      <Text style={styles.removeButtonText}>×</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-
-                {images.length < 10 && (
-                  <View style={styles.imageBox}>
-                    <TouchableOpacity
-                      onPress={pickImage}
-                      disabled={loading}
-                      style={{ justifyContent: 'center', alignItems: 'center' }}
-                    >
-                      <Text style={{ fontSize: 32, color: '#3b82f6' }}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+          </View>
+        ) : (
+          <View style={styles.carListingContainer}>
+            {filteredCars.map((item) => (
+              <View key={item.id}>
+                {renderCarCard({ item })}
               </View>
-            )}
-
-            {images.length === 0 && (
-              <TouchableOpacity
-                style={styles.addImageButton}
-                onPress={pickImage}
-                disabled={loading}
-              >
-                <Text style={styles.addImageButtonText}>📸 Ajouter des photos</Text>
-              </TouchableOpacity>
-            )}
-
-            {images.length > 0 && images.length < 10 && (
-              <TouchableOpacity
-                style={styles.addImageButton}
-                onPress={pickImage}
-                disabled={loading}
-              >
-                <Text style={styles.addImageButtonText}>+ Ajouter une photo</Text>
-              </TouchableOpacity>
-            )}
-
-            <Text style={styles.errorText}>
-              Ajoutez au moins 1 photo (maximum 10)
-            </Text>
+            ))}
           </View>
-        </View>
-
-        {/* Submit Button */}
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" size="large" />
-          ) : (
-            <Text style={styles.submitButtonText}>Publier l'annonce</Text>
-          )}
-        </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
