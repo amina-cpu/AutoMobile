@@ -1,605 +1,891 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import * as Location from 'expo-location';
-import React, { useCallback, useEffect, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { supabase } from '../src/config/supabase';
 import { carService } from '../src/services/carService';
 
+const { width } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  headerContainer: {
-    backgroundColor: '#1085a8ff',
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-  locationLabel: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 4,
-  },
-  locationRow: {
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  locationTextRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  locationText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  notificationButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  notificationIconContainer: {
-    position: 'relative',
-  },
-  bellIcon: {
-    width: 20,
-    height: 22,
-  },
-  bellTop: {
-    width: 16,
-    height: 16,
-    borderWidth: 2,
-    borderColor: '#FFF',
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    borderBottomWidth: 0,
-    marginLeft: 2,
-  },
-  bellBottom: {
-    width: 20,
-    height: 4,
-    backgroundColor: '#FFFF',
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
-    marginTop: -1,
-  },
-  bellClapper: {
-    width: 4,
-    height: 4,
-    backgroundColor: '#FFFF',
-    borderRadius: 2,
-    position: 'absolute',
-    bottom: 2,
-    left: 8,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ef4444',
-  },
-  searchBox: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    marginTop: 40,
   },
-  searchIcon: {
-    fontSize: 20,
-    color: '#93C5FD',
+  backButton: { padding: 8 },
+  backIcon: { fontSize: 24, color: '#1f2937' },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginLeft: 16,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
-    color: '#333',
-  },
-  filterButton: {
-    backgroundColor: '#fff',
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterIcon: {
-    fontSize: 24,
-    color: '#1085a8ff',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 22,
+  closeButton: { marginLeft: 'auto', padding: 8 },
+  closeIcon: { fontSize: 24, color: '#64748b' },
+  progressBar: { height: 4, backgroundColor: '#e5e7eb' },
+  progressFill: { height: '100%', backgroundColor: '#1085a8ff' },
+  content: { flex: 1 },
+  stepContainer: { padding: 20 },
+  stepTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#1f2937',
-  },
-  seeAllText: {
-    fontSize: 15,
-    color: '#1085a8ff',
-    fontWeight: '600',
-  },
-  brandsContainer: {
-    paddingHorizontal: 20,
     marginBottom: 8,
-    marginLeft: 50,
   },
-  brandRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 5,
+  stepSubtitle: {
+    fontSize: 15,
+    color: '#64748b',
+    marginBottom: 24,
+    lineHeight: 22,
   },
-  brandCard: {
-    width: '23%',
-    aspectRatio: 1,
-    backgroundColor: '#fff',
-    borderRadius: 40,
-    borderWidth: 2,
-    marginLeft: 1,
-    marginRight: 1,
-    borderColor: '#1085a8ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  brandLogo: {
-    width: 50,
-    height: 50,
-    marginBottom: 6,
-    resizeMode: 'contain',
-  },
-  brandName: {
-    fontSize: 13,
-    color: '#1085a8ff',
-    fontWeight: '500',
-  },
-  carListingContainer: {
-    padding: 20,
-    paddingBottom: 100,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
+  sectionLabel: {
     fontSize: 16,
-    color: '#9ca3af',
-    textAlign: 'center',
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 16,
   },
-  carCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    overflow: 'hidden',
+  required: { color: '#ef4444' },
+  photoGrid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 12,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
   },
-  carImageContainer: {
-    position: 'relative',
-    height: 200,
-    backgroundColor: '#f9fafb',
+  photoBox: {
+    width: (width - 52) / 2,
+    aspectRatio: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#1085a8ff',
+    // borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
-  carImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain',
+  photoBoxFilled: { 
+    borderStyle: 'solid', 
+    borderColor: '#1085a8ff',
+    borderWidth: 3,
   },
-  carImagePlaceholder: {
-    fontSize: 72,
-  },
-  dealBadge: {
+  photoImage: { width: '100%', height: '100%' },
+  photoLabel: {
     position: 'absolute',
-    top: 160,
+    top: 12,
     left: 12,
-    backgroundColor: '#1085a8ff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  dealBadgeIcon: {
-    fontSize: 14,
-  },
-  dealBadgeText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  priceTag: {
-    position: 'absolute',
-    top: 170,
     right: 12,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: '#1085a8ff',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#1085a8ff',
   },
-  priceTagText: {
-    fontSize: 18,
-    fontWeight: '800',
+  photoLabelText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  photoIconContainer: { alignItems: 'center', padding: 16 },
+  carIconImage: {
+    width: 60,
+    height: 60,
+    marginBottom: 12,
+    tintColor: '#1085a8ff',
+  },
+  photoText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#1085a8ff',
+    textAlign: 'center',
+    lineHeight: 20,
   },
-  likeButton: {
+  removePhotoButton: {
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ef4444',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
   },
-  likeIcon: {
-    fontSize: 20,
+  removePhotoText: { color: '#ffffff', fontSize: 20, fontWeight: 'bold' },
+  addMorePhotosBox: {
+    width: (width - 52) / 2,
+    aspectRatio: 1,
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  carInfo: {
-    padding: 16,
+  addMoreIcon: {
+    fontSize: 40,
+    color: '#1085a8ff',
+    marginBottom: 8,
   },
-  carType: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 4,
-    fontWeight: '500',
+  addMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1085a8ff',
+    textAlign: 'center',
   },
-  carName: {
-    fontSize: 18,
-    fontWeight: '700',
+  fieldContainer: { marginBottom: 20 },
+  fieldLabel: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#1f2937',
     marginBottom: 12,
   },
-  carDetailsRow: {
+  pickerButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
   },
-  specItem: {
+  pickerButtonText: { fontSize: 16, color: '#1f2937' },
+  pickerPlaceholder: { color: '#94a3b8' },
+  pickerArrow: { fontSize: 20, color: '#64748b' },
+  input: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#1f2937',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  modalHeader: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    textAlign: 'center',
+  },
+  modalSearchContainer: { padding: 16 },
+  modalSearchInput: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+  },
+  modalList: { maxHeight: 400 },
+  modalOption: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  modalOptionText: { fontSize: 16, color: '#1f2937' },
+  modalOptionSelected: { backgroundColor: '#e0f2fe' },
+  modalOptionTextSelected: { color: '#1085a8ff', fontWeight: '600' },
+  bottomContainer: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  continueButton: {
+    backgroundColor: '#1085a8ff',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  continueButtonDisabled: { backgroundColor: '#cbd5e1' },
+  continueButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  photoPackContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
   },
-  specText: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontWeight: '500',
+  photoPackLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
-  resultsCount: {
+  toggleCircle: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#cbd5e1',
+    marginRight: 12,
+    justifyContent: 'center',
+    padding: 2,
+  },
+  toggleCircleActive: {
+    backgroundColor: '#1085a8ff',
+  },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+  },
+  toggleThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  photoPackText: {
+    fontSize: 15,
+    color: '#1f2937',
+    flex: 1,
+  },
+  photoPackPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  infoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e0f2fe',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  infoIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  infoText: {
     fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginVertical: 12,
+    color: '#1085a8ff',
+    fontWeight: '600',
   },
 });
 
-export default function BuyScreen() {
-  const navigation = useNavigation();
-  const [cars, setCars] = useState([]);
-  const [filteredCars, setFilteredCars] = useState([]);
-  const [loading, setLoading] = useState(true);
+const brands = ['AUDI', 'BMW', 'CITROEN', 'FIAT', 'FORD', 'MERCEDES-BENZ', 'OPEL', 'PEUGEOT', 'RENAULT', 'VOLKSWAGEN', 'TOYOTA', 'HONDA'];
+const fuelTypes = ['Essence', 'Diesel', 'Hybride', 'Hybride Rechargeable', 'Électrique', 'GPL', 'Autre'];
+const transmissions = ['Manuelle', 'Automatique'];
+
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 30 }, (_, i) => (currentYear - i).toString());
+
+export default function SellScreen() {
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  
+  const [photos, setPhotos] = useState({
+    cover: null,
+    front: null,
+    back: null,
+    interior: null,
+  });
+  
+  const [formData, setFormData] = useState({
+    brand: '',
+    model: '',
+    year: '',
+    mileage: '',
+    fuel_type: '',
+    transmission: '',
+    price: '',
+    description: '',
+    condition: 'Bon',
+    first_hand: false,
+  });
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState('');
+  const [modalData, setModalData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [liked, setLiked] = useState({});
-  const [location, setLocation] = useState('Chargement...');
+  const [photoPack, setPhotoPack] = useState(false);
+
+  const totalSteps = 4;
+  const progress = (step / totalSteps) * 100;
 
   useEffect(() => {
-    getUserLocation();
+    getCurrentUser();
   }, []);
 
-  const getUserLocation = async () => {
+  const getCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+  };
+
+  const openModal = (type, data) => {
+    setModalType(type);
+    setModalData(data);
+    setModalVisible(true);
+    setSearchQuery('');
+  };
+
+  const selectModalOption = (value) => {
+    setFormData(prev => ({ ...prev, [modalType]: value }));
+    setModalVisible(false);
+  };
+
+  const pickImage = async (photoType) => {
     try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      
-      if (status !== 'granted') {
-        setLocation('error');
-        return;
-      }
-
-      let currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
       });
 
-      const { latitude, longitude } = currentLocation.coords;
-
-      let reverseGeocode = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
-
-      if (reverseGeocode && reverseGeocode.length > 0) {
-        const address = reverseGeocode[0];
-        const city = address.city || address.subregion || address.region || 'Algérie';
-        const country = address.country || 'Algérie';
-        setLocation(`${city}, ${country}`);
-      } else {
-        setLocation('error');
+      if (!result.canceled && result.assets[0]) {
+        setPhotos(prev => ({ ...prev, [photoType]: result.assets[0].uri }));
       }
     } catch (error) {
-      console.error('Erreur de localisation:', error);
-      setLocation('error');
+      Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      loadCars();
-    }, [])
-  );
+  const removePhoto = (photoType) => {
+    setPhotos(prev => ({ ...prev, [photoType]: null }));
+  };
 
-  const loadCars = async () => {
+  const uploadImages = async (carId) => {
+    const uploadedImages = [];
+    const photoEntries = Object.entries(photos).filter(([_, uri]) => uri);
+
+    for (let i = 0; i < photoEntries.length; i++) {
+      try {
+        const [photoType, imageUri] = photoEntries[i];
+
+        const { data, error: dbError } = await supabase
+          .from('car_images')
+          .insert({
+            car_id: carId,
+            image_url: imageUri,
+            display_order: i,
+          })
+          .select()
+          .single();
+
+        if (dbError) throw dbError;
+        uploadedImages.push(imageUri);
+      } catch (error) {
+        console.error(`Error saving ${photoEntries[i][0]}:`, error);
+      }
+    }
+    
+    if (uploadedImages.length === 0 && photoEntries.length > 0) {
+      throw new Error('Failed to save any images to database');
+    }
+    
+    return uploadedImages;
+  };
+
+  const validateStep = () => {
+    switch (step) {
+      case 1:
+        return photos.cover !== null;
+      case 2:
+        return formData.brand && formData.model && formData.year;
+      case 3:
+        return formData.mileage && formData.fuel_type && formData.transmission;
+      case 4:
+        return formData.price;
+      default:
+        return false;
+    }
+  };
+
+  const handleContinue = () => {
+    if (step < totalSteps) {
+      setStep(step + 1);
+    } else {
+      handleSubmit();
+    }
+  };
+
+  const handleSubmit = async () => {
     try {
       setLoading(true);
-      const data = await carService.getAllCars();
-      setCars(data);
-      setFilteredCars(data);
+
+      if (!currentUser) {
+        Alert.alert('Erreur', 'Vous devez être connecté pour vendre une voiture');
+        return;
+      }
+
+      const carData = {
+        seller_id: currentUser.id,
+        brand: formData.brand,
+        model: formData.model,
+        year: parseInt(formData.year),
+        price: parseFloat(formData.price),
+        fuel_type: formData.fuel_type,
+        transmission: formData.transmission,
+        mileage: parseInt(formData.mileage),
+        description: formData.description || null,
+        condition: formData.condition,
+        first_hand: formData.first_hand,
+        status: 'available',
+      };
+
+      const newCar = await carService.addCar(carData);
+
+      if (Object.values(photos).some(p => p)) {
+        await uploadImages(newCar.id);
+      }
+
+      Alert.alert(
+        'Succès', 
+        'Votre voiture a été ajoutée avec succès!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setStep(1);
+              setPhotos({ cover: null, front: null, back: null, interior: null });
+              setFormData({
+                brand: '',
+                model: '',
+                year: '',
+                mileage: '',
+                fuel_type: '',
+                transmission: '',
+                price: '',
+                description: '',
+                condition: 'Bon',
+                first_hand: false,
+              });
+            },
+          },
+        ]
+      );
     } catch (error) {
-      console.error('Error loading cars:', error);
+      Alert.alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = (text) => {
-    setSearchQuery(text);
-    
-    if (!text.trim()) {
-      setFilteredCars(cars);
-      return;
-    }
-
-    const query = text.toLowerCase();
-    const filtered = cars.filter(car => {
-      const brand = car.brand?.toLowerCase() || '';
-      const model = car.model?.toLowerCase() || '';
-      const year = car.year?.toString() || '';
-      const fuelType = car.fuel_type?.toLowerCase() || '';
-      const transmission = car.transmission?.toLowerCase() || '';
-
-      return (
-        brand.includes(query) ||
-        model.includes(query) ||
-        year.includes(query) ||
-        fuelType.includes(query) ||
-        transmission.includes(query)
-      );
-    });
-
-    setFilteredCars(filtered);
-  };
-
-  const toggleLike = (carId) => {
-    setLiked(prev => ({
-      ...prev,
-      [carId]: !prev[carId]
-    }));
-  };
-
-  const brands = [
-    { name: 'BMW', image: 'https://logo.clearbit.com/bmw.com' },
-    { name: 'Toyota', image: 'https://logo.clearbit.com/toyota.com' },
-    { name: 'Mercedes', image: 'https://logo.clearbit.com/mercedes-benz.com' },
-    { name: 'Tesla', image: 'https://logo.clearbit.com/tesla.com' },
-    { name: 'Tesla', image: 'https://logo.clearbit.com/tesla.com' },
-  ];
-
-  const renderCarCard = ({ item }) => {
-    const firstImage = item.car_images && item.car_images.length > 0 
-      ? item.car_images[0].image_url 
-      : null;
-
-    return (
-      <TouchableOpacity
-        onPress={() => navigation.navigate('product-detail', { carId: item.id })}
-        activeOpacity={0.7}
-      >
-        <View style={styles.carCard}>
-          <View style={styles.carImageContainer}>
-            {firstImage ? (
-              <Image source={{ uri: firstImage }} style={styles.carImage} />
-            ) : (
-              <Text style={styles.carImagePlaceholder}>🚗</Text>
-            )}
-            
-            <View style={styles.dealBadge}>
-              <Text style={styles.dealBadgeText}>TRÈS BONNE AFFAIRE</Text>
-            </View>
-
-            <View style={styles.priceTag}>
-              <Text style={styles.priceTagText}>{item.price} €</Text>
-            </View>
-
-            <TouchableOpacity 
-              style={styles.likeButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                toggleLike(item.id);
-              }}
-            >
-              <Text style={styles.likeIcon}>
-                {liked[item.id] ? '❤️' : '🤍'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.carInfo}>
-            <Text style={styles.carName}>
-              {item.brand} {item.model?.split(' - ')[0]}
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Ajoutez des photos</Text>
+            <Text style={styles.stepSubtitle}>
+              Ajoutez un maximum de photos pour augmenter le nombre de contacts
             </Text>
-            
-            <View style={styles.carDetailsRow}>
-              <View style={styles.specItem}>
-                <Text style={styles.specText}>{item.year}</Text>
-              </View>
-              <View style={styles.specItem}>
-                <Text style={styles.specText}>{item.mileage} km</Text>
-              </View>
-              <View style={styles.specItem}>
-                <Text style={styles.specText}>{item.fuel_type}</Text>
-              </View>
-              <View style={styles.specItem}>
-                <Text style={styles.specText}>{item.transmission}</Text>
-              </View>
+
+            <Text style={styles.sectionLabel}>
+              Vos photos <Text style={styles.required}>*</Text>
+            </Text>
+
+            <View style={styles.photoGrid}>
+              {/* Cover Photo */}
+              <TouchableOpacity
+                style={[styles.photoBox, photos.cover && styles.photoBoxFilled]}
+                onPress={() => pickImage('cover')}
+              >
+                {photos.cover ? (
+                  <>
+                    <Image source={{ uri: photos.cover }} style={styles.photoImage} />
+                    <View style={styles.photoLabel}>
+                      <Text style={styles.photoLabelText}>Photo de couverture</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => removePhoto('cover')}
+                    >
+                      <Text style={styles.removePhotoText}>×</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={styles.photoIconContainer}>
+                    <Text style={{ fontSize: 50, color: '#1085a8ff' }}>📷</Text>
+                    <Text style={styles.photoText}>Photo de{'\n'}couverture</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Front Photo */}
+              <TouchableOpacity
+                style={[styles.photoBox, photos.front && styles.photoBoxFilled]}
+                onPress={() => pickImage('front')}
+              >
+                {photos.front ? (
+                  <>
+                    <Image source={{ uri: photos.front }} style={styles.photoImage} />
+                    <View style={styles.photoLabel}>
+                      <Text style={styles.photoLabelText}>3/4 avant gauche</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => removePhoto('front')}
+                    >
+                      <Text style={styles.removePhotoText}>×</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={styles.photoIconContainer}>
+                    <Text style={{ fontSize: 50, color: '#1085a8ff' }}>🚗</Text>
+                    <Text style={styles.photoText}>3/4 avant{'\n'}gauche</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Back Photo */}
+              <TouchableOpacity
+                style={[styles.photoBox, photos.back && styles.photoBoxFilled]}
+                onPress={() => pickImage('back')}
+              >
+                {photos.back ? (
+                  <>
+                    <Image source={{ uri: photos.back }} style={styles.photoImage} />
+                    <View style={styles.photoLabel}>
+                      <Text style={styles.photoLabelText}>3/4 arrière droit</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => removePhoto('back')}
+                    >
+                      <Text style={styles.removePhotoText}>×</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={styles.photoIconContainer}>
+                    <Text style={{ fontSize: 50, color: '#1085a8ff' }}>🚗</Text>
+                    <Text style={styles.photoText}>3/4 arrière{'\n'}droit</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Interior Photo */}
+              <TouchableOpacity
+                style={[styles.photoBox, photos.interior && styles.photoBoxFilled]}
+                onPress={() => pickImage('interior')}
+              >
+                {photos.interior ? (
+                  <>
+                    <Image source={{ uri: photos.interior }} style={styles.photoImage} />
+                    <View style={styles.photoLabel}>
+                      <Text style={styles.photoLabelText}>Intérieur conducteur</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => removePhoto('interior')}
+                    >
+                      <Text style={styles.removePhotoText}>×</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <View style={styles.photoIconContainer}>
+                    <Text style={{ fontSize: 50, color: '#1085a8ff' }}>🪑</Text>
+                    <Text style={styles.photoText}>Intérieur{'\n'}conducteur</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* <TouchableOpacity style={styles.infoButton}>
+              <Text style={styles.infoIcon}>ℹ️</Text>
+              <Text style={styles.infoText}>En savoir plus</Text>
+            </TouchableOpacity> */}
+          </View>
+        );
+
+      case 2:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Dites-nous en plus</Text>
+            <Text style={styles.stepSubtitle}>
+              Vérifiez et complétez les informations de votre véhicule
+            </Text>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>
+                Marque <Text style={styles.required}>*</Text>
+              </Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => openModal('brand', brands)}
+              >
+                <Text style={[styles.pickerButtonText, !formData.brand && styles.pickerPlaceholder]}>
+                  {formData.brand || 'Choisissez'}
+                </Text>
+                <Text style={styles.pickerArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>
+                Modèle <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="ex: A4, Golf, 308"
+                value={formData.model}
+                onChangeText={(value) => setFormData(prev => ({ ...prev, model: value }))}
+              />
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>
+                Année modèle <Text style={styles.required}>*</Text>
+              </Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => openModal('year', years)}
+              >
+                <Text style={[styles.pickerButtonText, !formData.year && styles.pickerPlaceholder]}>
+                  {formData.year || 'Choisissez'}
+                </Text>
+                <Text style={styles.pickerArrow}>›</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </TouchableOpacity>
-    );
+        );
+
+      case 3:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Dites-nous en plus</Text>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>
+                Kilométrage <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="208000"
+                value={formData.mileage}
+                onChangeText={(value) => setFormData(prev => ({ ...prev, mileage: value }))}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>
+                Énergie <Text style={styles.required}>*</Text>
+              </Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => openModal('fuel_type', fuelTypes)}
+              >
+                <Text style={[styles.pickerButtonText, !formData.fuel_type && styles.pickerPlaceholder]}>
+                  {formData.fuel_type || 'Choisissez'}
+                </Text>
+                <Text style={styles.pickerArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>
+                Boîte de vitesse <Text style={styles.required}>*</Text>
+              </Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => openModal('transmission', transmissions)}
+              >
+                <Text style={[styles.pickerButtonText, !formData.transmission && styles.pickerPlaceholder]}>
+                  {formData.transmission || 'Choisissez'}
+                </Text>
+                <Text style={styles.pickerArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+
+      case 4:
+        return (
+          <View style={styles.stepContainer}>
+            <Text style={styles.stepTitle}>Prix et description</Text>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>
+                Prix (DA) <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="15000"
+                value={formData.price}
+                onChangeText={(value) => setFormData(prev => ({ ...prev, price: value }))}
+                keyboardType="decimal-pad"
+              />
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Description (optionnel)</Text>
+              <TextInput
+                style={[styles.input, { height: 120, textAlignVertical: 'top' }]}
+                placeholder="Décrivez l'état, les équipements, l'historique..."
+                value={formData.description}
+                onChangeText={(value) => setFormData(prev => ({ ...prev, description: value }))}
+                multiline
+                numberOfLines={5}
+              />
+            </View>
+          </View>
+        );
+
+      default:
+        return null;
+    }
   };
+
+  const filteredModalData = modalData.filter(item =>
+    item.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1085a8ff" translucent={true} />
-      
-      <View style={styles.headerContainer}>
-        <Text style={styles.locationLabel}></Text>
-        <View style={styles.locationRow}>
-          <View style={styles.locationTextRow}>
-            <Text style={styles.locationText}>{location} ▼</Text>
-          </View>
-          <TouchableOpacity>
-            <View style={styles.notificationIconContainer}>
-              <View style={styles.bellIcon}>
-                <View style={styles.bellTop} />
-                <View style={styles.bellBottom} />
-                <View style={styles.bellClapper} />
-              </View>
-              <View style={styles.notificationDot} />
-            </View>
+      <View style={styles.header}>
+        {step > 1 ? (
+          <TouchableOpacity style={styles.backButton} onPress={() => setStep(step - 1)}>
+            <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search"
-              placeholderTextColor="#9ca3af"
-              value={searchQuery}
-              onChangeText={handleSearch}
-            />
-          </View>
-          <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterIcon}>☰</Text>
-          </TouchableOpacity>
-        </View>
+        ) : (
+          <View style={styles.backButton} />
+        )}
+        <Text style={styles.headerTitle}>Vendre une voiture</Text>
+        <TouchableOpacity style={styles.closeButton}>
+          <Text style={styles.closeIcon}>×</Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Marques</Text>
-        </View>
+      <View style={styles.progressBar}>
+        <View style={[styles.progressFill, { width: `${progress}%` }]} />
+      </View>
 
-        <View style={styles.brandsContainer}>
-          <View style={styles.brandRow}>
-            {brands.map((brand, index) => (
-              <TouchableOpacity key={index} style={styles.brandCard}>
-                <Text style={styles.brandName}>{brand.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Voitures Populaire</Text>
-        </View>
-
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#1E90FF" />
-          </View>
-        ) : filteredCars.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {searchQuery 
-                ? `No vehicles found for "${searchQuery}"`
-                : 'No vehicles available'
-              }
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.carListingContainer}>
-            {filteredCars.map((item) => (
-              <View key={item.id}>
-                {renderCarCard({ item })}
-              </View>
-            ))}
-          </View>
-        )}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {renderStep()}
       </ScrollView>
+
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity
+          style={[styles.continueButton, !validateStep() && styles.continueButtonDisabled]}
+          onPress={handleContinue}
+          disabled={!validateStep() || loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <Text style={styles.continueButtonText}>
+              {step === totalSteps ? 'Publier l\'annonce' : 'Continuer'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {modalType === 'brand' && 'Marque'}
+                {modalType === 'year' && 'Année modèle'}
+                {modalType === 'fuel_type' && 'Énergie'}
+                {modalType === 'transmission' && 'Boîte de vitesse'}
+              </Text>
+            </View>
+
+            {(modalType === 'brand' || modalType === 'year') && (
+              <View style={styles.modalSearchContainer}>
+                <TextInput
+                  style={styles.modalSearchInput}
+                  placeholder="Rechercher..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoFocus
+                />
+              </View>
+            )}
+
+            <ScrollView style={styles.modalList}>
+              {filteredModalData.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.modalOption,
+                    formData[modalType] === item && styles.modalOptionSelected,
+                  ]}
+                  onPress={() => selectModalOption(item)}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      formData[modalType] === item && styles.modalOptionTextSelected,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
