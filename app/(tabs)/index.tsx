@@ -647,17 +647,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.paginationDots}>
-          {latestCars.map((_, index) => (
-            <View 
-              key={index}
-              style={[
-                styles.dot,
-                index === currentCarIndex && styles.activeDot
-              ]}
-            />
-          ))}
-        </View>
+     
       </View>
     );
   };

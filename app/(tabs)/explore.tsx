@@ -148,8 +148,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginTop: 24,
-    marginBottom: 16,
+    marginTop: 12,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 22,
@@ -164,21 +164,19 @@ const styles = StyleSheet.create({
   brandsContainer: {
     paddingHorizontal: 20,
     marginBottom: 8,
-    marginLeft:50,
   },
   brandRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 5,
+    justifyContent: 'flex-start',
+    gap: 10,
+    flexWrap: 'wrap',
   },
   brandCard: {
-    width: '23%',
+    width: '22%',
     aspectRatio: 1,
     backgroundColor: '#fff',
     borderRadius: 40,
     borderWidth: 2,
-    marginLeft: 1,
-    marginRight: 1,
     borderColor: '#1085a8ff',
     justifyContent: 'center',
     alignItems: 'center',
@@ -187,6 +185,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+  },
+  brandCardActive: {
+    backgroundColor: '#1085a8ff',
   },
   brandLogo: {
     width: 50,
@@ -198,6 +199,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1085a8ff',
     fontWeight: '500',
+    textAlign: 'center',
+  },
+  brandNameActive: {
+    color: '#fff',
   },
   carListingContainer: {
     padding: 20,
@@ -355,6 +360,9 @@ export default function BuyScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [liked, setLiked] = useState({});
   const [location, setLocation] = useState('Chargement...');
+  const [brands, setBrands] = useState([]);
+  const [selectedBrand, setSelectedBrand] = useState(null);
+  const [brandsLoading, setBrandsLoading] = useState(true);
 
   useEffect(() => {
     getUserLocation();
@@ -397,8 +405,25 @@ export default function BuyScreen() {
   useFocusEffect(
     useCallback(() => {
       loadCars();
+      loadBrands();
     }, [])
   );
+
+  const loadBrands = async () => {
+    try {
+      setBrandsLoading(true);
+      const data = await carService.getAllCars();
+      
+      // Extract unique brands from cars
+      const uniqueBrands = [...new Set(data.map(car => car.brand))].filter(Boolean);
+      
+      setBrands(uniqueBrands.sort());
+    } catch (error) {
+      console.error('Error loading brands:', error);
+    } finally {
+      setBrandsLoading(false);
+    }
+  };
 
   const loadCars = async () => {
     try {
@@ -415,28 +440,36 @@ export default function BuyScreen() {
 
   const handleSearch = (text) => {
     setSearchQuery(text);
-    
-    if (!text.trim()) {
-      setFilteredCars(cars);
-      return;
+    filterCars(text, selectedBrand);
+  };
+
+  const handleBrandSelect = (brand) => {
+    const newBrand = selectedBrand === brand ? null : brand;
+    setSelectedBrand(newBrand);
+    filterCars(searchQuery, newBrand);
+  };
+
+  const filterCars = (query, brand) => {
+    let filtered = cars;
+
+    // Filter by brand if selected
+    if (brand) {
+      filtered = filtered.filter(car => car.brand?.toLowerCase() === brand.toLowerCase());
     }
 
-    const query = text.toLowerCase();
-    const filtered = cars.filter(car => {
-      const brand = car.brand?.toLowerCase() || '';
-      const model = car.model?.toLowerCase() || '';
-      const year = car.year?.toString() || '';
-      const fuelType = car.fuel_type?.toLowerCase() || '';
-      const transmission = car.transmission?.toLowerCase() || '';
+    // Filter by search query
+    if (query.trim()) {
+      const searchLower = query.toLowerCase();
+      filtered = filtered.filter(car => {
+        const brandMatch = car.brand?.toLowerCase().includes(searchLower) || false;
+        const model = car.model?.toLowerCase().includes(searchLower) || false;
+        const year = car.year?.toString().includes(query) || false;
+        const fuelType = car.fuel_type?.toLowerCase().includes(searchLower) || false;
+        const transmission = car.transmission?.toLowerCase().includes(searchLower) || false;
 
-      return (
-        brand.includes(query) ||
-        model.includes(query) ||
-        year.includes(query) ||
-        fuelType.includes(query) ||
-        transmission.includes(query)
-      );
-    });
+        return brandMatch || model || year || fuelType || transmission;
+      });
+    }
 
     setFilteredCars(filtered);
   };
@@ -447,17 +480,6 @@ export default function BuyScreen() {
       [carId]: !prev[carId]
     }));
   };
-
-  const brands = [
-    { name: 'BMW', image: 'https://logo.clearbit.com/bmw.com' },
-    { name: 'Toyota', image: 'https://logo.clearbit.com/toyota.com' },
-    { name: 'Mercedes', image: 'https://logo.clearbit.com/mercedes-benz.com' },
-    { name: 'Tesla', image: 'https://logo.clearbit.com/tesla.com' },
-    { name: 'Tesla', image: 'https://logo.clearbit.com/tesla.com' },
-    // { name: 'Tesla', image: 'https://logo.clearbit.com/tesla.com' },
-    
-
-  ];
 
   const renderCarCard = ({ item }) => {
     const firstImage = item.car_images && item.car_images.length > 0 
@@ -478,7 +500,6 @@ export default function BuyScreen() {
             )}
             
             <View style={styles.dealBadge}>
-              {/* <Text style={styles.dealBadgeIcon}>💎</Text> */}
               <Text style={styles.dealBadgeText}>TRÈS BONNE AFFAIRE</Text>
             </View>
 
@@ -533,15 +554,15 @@ export default function BuyScreen() {
           <View style={styles.locationTextRow}>
             <Text style={styles.locationText}>{location} ▼</Text>
           </View>
-          <TouchableOpacity >
-             <View style={styles.notificationIconContainer}>
-                    <View style={styles.bellIcon}>
-                      <View style={styles.bellTop} />
-                      <View style={styles.bellBottom} />
-                      <View style={styles.bellClapper} />
-                    </View>
-                    <View style={styles.notificationDot} />
-                  </View>
+          <TouchableOpacity>
+            <View style={styles.notificationIconContainer}>
+              <View style={styles.bellIcon}>
+                <View style={styles.bellTop} />
+                <View style={styles.bellBottom} />
+                <View style={styles.bellClapper} />
+              </View>
+              <View style={styles.notificationDot} />
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -549,7 +570,7 @@ export default function BuyScreen() {
           <View style={styles.searchBox}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search"
+              placeholder="Search brand, model..."
               placeholderTextColor="#9ca3af"
               value={searchQuery}
               onChangeText={handleSearch}
@@ -565,46 +586,54 @@ export default function BuyScreen() {
         {/* Brands Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Marques</Text>
-          {/* <TouchableOpacity>
-            <Text style={styles.seeAllText}>Voir tout</Text>
-          </TouchableOpacity> */}
         </View>
 
-        <View style={styles.brandsContainer}>
-          <View style={styles.brandRow}>
-            {brands.map((brand, index) => (
-              <TouchableOpacity key={index} style={styles.brandCard}>
-                <Text style={styles.brandName}>{brand.name}</Text>
-              </TouchableOpacity>
-            ))}
+        {brandsLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color="#1085a8ff" />
           </View>
-        </View>
+        ) : (
+          <View style={styles.brandsContainer}>
+            <View style={styles.brandRow}>
+              {brands.map((brand, index) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={[
+                    styles.brandCard,
+                    selectedBrand === brand && styles.brandCardActive
+                  ]}
+                  onPress={() => handleBrandSelect(brand)}
+                >
+                  <Text style={[
+                    styles.brandName,
+                    selectedBrand === brand && styles.brandNameActive
+                  ]}>
+                    {brand}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Popular Car Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Voitures Populaire</Text>
-          {/* <TouchableOpacity>
-            <Text style={styles.seeAllText}>Voir tout</Text>
-          </TouchableOpacity> */}
         </View>
-{/* 
-        {!loading && (
-          <Text style={styles.resultsCount}>
-            {filteredCars.length} {filteredCars.length === 1 ? 'vehicle found' : 'vehicles found'}
-          </Text>
-        )} */}
 
         {/* Car List */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#1E90FF" />
+            <ActivityIndicator size="large" color="#1085a8ff" />
           </View>
         ) : filteredCars.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
-              {searchQuery 
-                ? `No vehicles found for "${searchQuery}"`
-                : 'No vehicles available'
+              {selectedBrand 
+                ? `No vehicles found for brand "${selectedBrand}"`
+                : searchQuery 
+                  ? `No vehicles found for "${searchQuery}"`
+                  : 'No vehicles available'
               }
             </Text>
           </View>

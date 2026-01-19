@@ -18,302 +18,6 @@ import { carService } from '../src/services/carService';
 
 const { width } = Dimensions.get('window');
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    marginTop: 40,
-  },
-  backButton: { padding: 8 },
-  backIcon: { fontSize: 24, color: '#1f2937' },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginLeft: 16,
-  },
-  closeButton: { marginLeft: 'auto', padding: 8 },
-  closeIcon: { fontSize: 24, color: '#64748b' },
-  progressBar: { height: 4, backgroundColor: '#e5e7eb' },
-  progressFill: { height: '100%', backgroundColor: '#1085a8ff' },
-  content: { flex: 1 },
-  stepContainer: { padding: 20 },
-  stepTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 8,
-  },
-  stepSubtitle: {
-    fontSize: 15,
-    color: '#64748b',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  sectionLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 16,
-  },
-  required: { color: '#ef4444' },
-  photoGrid: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 12,
-    marginBottom: 20,
-  },
-  photoBox: {
-    width: (width - 52) / 2,
-    aspectRatio: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#1085a8ff',
-    // borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  photoBoxFilled: { 
-    borderStyle: 'solid', 
-    borderColor: '#1085a8ff',
-    borderWidth: 3,
-  },
-  photoImage: { width: '100%', height: '100%' },
-  photoLabel: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    right: 12,
-    backgroundColor: '#1085a8ff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  photoLabelText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  photoIconContainer: { alignItems: 'center', padding: 16 },
-  carIconImage: {
-    width: 60,
-    height: 60,
-    marginBottom: 12,
-    tintColor: '#1085a8ff',
-  },
-  photoText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1085a8ff',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  removePhotoButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#ef4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removePhotoText: { color: '#ffffff', fontSize: 20, fontWeight: 'bold' },
-  addMorePhotosBox: {
-    width: (width - 52) / 2,
-    aspectRatio: 1,
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addMoreIcon: {
-    fontSize: 40,
-    color: '#1085a8ff',
-    marginBottom: 8,
-  },
-  addMoreText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1085a8ff',
-    textAlign: 'center',
-  },
-  fieldContainer: { marginBottom: 20 },
-  fieldLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 12,
-  },
-  pickerButton: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  pickerButtonText: { fontSize: 16, color: '#1f2937' },
-  pickerPlaceholder: { color: '#94a3b8' },
-  pickerArrow: { fontSize: 20, color: '#64748b' },
-  input: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '80%',
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  modalHeader: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    textAlign: 'center',
-  },
-  modalSearchContainer: { padding: 16 },
-  modalSearchInput: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-  },
-  modalList: { maxHeight: 400 },
-  modalOption: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  modalOptionText: { fontSize: 16, color: '#1f2937' },
-  modalOptionSelected: { backgroundColor: '#e0f2fe' },
-  modalOptionTextSelected: { color: '#1085a8ff', fontWeight: '600' },
-  bottomContainer: {
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  continueButton: {
-    backgroundColor: '#1085a8ff',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  continueButtonDisabled: { backgroundColor: '#cbd5e1' },
-  continueButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  photoPackContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  photoPackLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  toggleCircle: {
-    width: 50,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#cbd5e1',
-    marginRight: 12,
-    justifyContent: 'center',
-    padding: 2,
-  },
-  toggleCircleActive: {
-    backgroundColor: '#1085a8ff',
-  },
-  toggleThumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-  },
-  toggleThumbActive: {
-    alignSelf: 'flex-end',
-  },
-  photoPackText: {
-    fontSize: 15,
-    color: '#1f2937',
-    flex: 1,
-  },
-  photoPackPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  infoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#e0f2fe',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  infoIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#1085a8ff',
-    fontWeight: '600',
-  },
-});
-
 const brands = ['AUDI', 'BMW', 'CITROEN', 'FIAT', 'FORD', 'MERCEDES-BENZ', 'OPEL', 'PEUGEOT', 'RENAULT', 'VOLKSWAGEN', 'TOYOTA', 'HONDA'];
 const fuelTypes = ['Essence', 'Diesel', 'Hybride', 'Hybride Rechargeable', 'Électrique', 'GPL', 'Autre'];
 const transmissions = ['Manuelle', 'Automatique'];
@@ -351,6 +55,13 @@ export default function SellScreen() {
   const [modalData, setModalData] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [photoPack, setPhotoPack] = useState(false);
+
+  // Focus states
+  const [modelFocused, setModelFocused] = useState(false);
+  const [mileageFocused, setMileageFocused] = useState(false);
+  const [priceFocused, setPriceFocused] = useState(false);
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
@@ -633,11 +344,6 @@ export default function SellScreen() {
                 )}
               </TouchableOpacity>
             </View>
-
-            {/* <TouchableOpacity style={styles.infoButton}>
-              <Text style={styles.infoIcon}>ℹ️</Text>
-              <Text style={styles.infoText}>En savoir plus</Text>
-            </TouchableOpacity> */}
           </View>
         );
 
@@ -669,10 +375,15 @@ export default function SellScreen() {
                 Modèle <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  modelFocused && styles.inputFocused
+                ]}
                 placeholder="ex: A4, Golf, 308"
                 value={formData.model}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, model: value }))}
+                onFocus={() => setModelFocused(true)}
+                onBlur={() => setModelFocused(false)}
               />
             </View>
 
@@ -703,11 +414,16 @@ export default function SellScreen() {
                 Kilométrage <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  mileageFocused && styles.inputFocused
+                ]}
                 placeholder="208000"
                 value={formData.mileage}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, mileage: value }))}
                 keyboardType="numeric"
+                onFocus={() => setMileageFocused(true)}
+                onBlur={() => setMileageFocused(false)}
               />
             </View>
 
@@ -753,23 +469,34 @@ export default function SellScreen() {
                 Prix (DA) <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  priceFocused && styles.inputFocused
+                ]}
                 placeholder="15000"
                 value={formData.price}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, price: value }))}
                 keyboardType="decimal-pad"
+                onFocus={() => setPriceFocused(true)}
+                onBlur={() => setPriceFocused(false)}
               />
             </View>
 
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Description (optionnel)</Text>
               <TextInput
-                style={[styles.input, { height: 120, textAlignVertical: 'top' }]}
+                style={[
+                  styles.input,
+                  { height: 120, textAlignVertical: 'top' },
+                  descriptionFocused && styles.inputFocused
+                ]}
                 placeholder="Décrivez l'état, les équipements, l'historique..."
                 value={formData.description}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, description: value }))}
                 multiline
                 numberOfLines={5}
+                onFocus={() => setDescriptionFocused(true)}
+                onBlur={() => setDescriptionFocused(false)}
               />
             </View>
           </View>
@@ -853,11 +580,16 @@ export default function SellScreen() {
             {(modalType === 'brand' || modalType === 'year') && (
               <View style={styles.modalSearchContainer}>
                 <TextInput
-                  style={styles.modalSearchInput}
+                  style={[
+                    styles.modalSearchInput,
+                    searchFocused && styles.modalSearchInputFocused
+                  ]}
                   placeholder="Rechercher..."
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   autoFocus
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
                 />
               </View>
             )}
@@ -889,3 +621,227 @@ export default function SellScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    marginTop: 40,
+  },
+  backButton: { padding: 8 },
+  backIcon: { fontSize: 24, color: '#1f2937' },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginLeft: 16,
+  },
+  closeButton: { marginLeft: 'auto', padding: 8 },
+  closeIcon: { fontSize: 24, color: '#64748b' },
+  progressBar: { height: 4, backgroundColor: '#e5e7eb' },
+  progressFill: { height: '100%', backgroundColor: '#1085a8ff' },
+  content: { flex: 1 },
+  stepContainer: { padding: 20 },
+  stepTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  stepSubtitle: {
+    fontSize: 15,
+    color: '#64748b',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 16,
+  },
+  required: { color: '#ef4444' },
+  photoGrid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 12,
+    marginBottom: 20,
+  },
+  photoBox: {
+    width: (width - 52) / 2,
+    aspectRatio: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#1085a8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  photoBoxFilled: { 
+    borderStyle: 'solid', 
+    borderColor: '#1085a8ff',
+    borderWidth: 3,
+  },
+  photoImage: { width: '100%', height: '100%' },
+  photoLabel: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    right: 12,
+    backgroundColor: '#1085a8ff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  photoLabelText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  photoIconContainer: { alignItems: 'center', padding: 16 },
+  photoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1085a8ff',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removePhotoText: { color: '#ffffff', fontSize: 20, fontWeight: 'bold' },
+  fieldContainer: { marginBottom: 20 },
+  fieldLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 12,
+  },
+  pickerButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pickerButtonText: { fontSize: 16, color: '#1f2937' },
+  pickerPlaceholder: { color: '#94a3b8' },
+  pickerArrow: { fontSize: 20, color: '#64748b' },
+  input: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: '#1f2937',
+  },
+  inputFocused: {
+    borderColor: '#1085a8ff',
+    backgroundColor: '#ffffff',
+    shadowColor: '#1085a8ff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  modalHeader: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    textAlign: 'center',
+  },
+  modalSearchContainer: { padding: 16 },
+  modalSearchInput: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  modalSearchInputFocused: {
+    borderColor: '#1085a8ff',
+    backgroundColor: '#ffffff',
+    shadowColor: '#1085a8ff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  modalList: { maxHeight: 400 },
+  modalOption: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  modalOptionText: { fontSize: 16, color: '#1f2937' },
+  modalOptionSelected: { backgroundColor: '#e0f2fe' },
+  modalOptionTextSelected: { color: '#1085a8ff', fontWeight: '600' },
+  bottomContainer: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  continueButton: {
+    backgroundColor: '#1085a8ff',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  continueButtonDisabled: { backgroundColor: '#cbd5e1' },
+  continueButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+});

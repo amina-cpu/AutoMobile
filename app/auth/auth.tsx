@@ -1,24 +1,31 @@
+import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { supabase } from '../src/config/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const { height } = Dimensions.get('window');
+
+const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
+const redirectUri = AuthSession.makeRedirectUri({
+  scheme: 'automobile',
+  path: 'auth/callback',
+});
 
 export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
@@ -31,6 +38,7 @@ export default function AuthScreen() {
 
   useEffect(() => {
     checkUser();
+    console.log('Redirect URI:', redirectUri);
   }, []);
 
   const checkUser = async () => {
@@ -41,6 +49,31 @@ export default function AuthScreen() {
       }
     } catch (error) {
       console.log('Not logged in');
+    }
+  };
+
+  const createUserProfile = async (userId, userEmail, userPhone = null) => {
+    try {
+      console.log('Creating user profile for:', userId, userEmail);
+      
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert([{
+          id: userId,
+          email: userEmail,
+          phone: userPhone || null,
+          account_type: 'buyer',
+        }]);
+
+      if (insertError) {
+        console.error('Error creating user profile:', insertError);
+        throw insertError;
+      }
+
+      console.log('User profile created successfully');
+    } catch (error) {
+      console.error('Error in createUserProfile:', error);
+      throw error;
     }
   };
 
@@ -70,6 +103,11 @@ export default function AuthScreen() {
       });
 
       if (signUpError) throw signUpError;
+
+      // Create user profile in users table
+      if (data.user) {
+        await createUserProfile(data.user.id, email, phone);
+      }
 
       Alert.alert('Success', 'Account created! Check your email to confirm.');
       setEmail('');
@@ -102,6 +140,20 @@ export default function AuthScreen() {
 
       if (signInError) throw signInError;
 
+      // Check if user profile exists, if not create it
+      if (data.user) {
+        const { data: existingUser, error: fetchError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', data.user.id)
+          .single();
+
+        if (fetchError?.code === 'PGRST116') {
+          // User doesn't exist, create profile
+          await createUserProfile(data.user.id, data.user.email);
+        }
+      }
+
       Alert.alert('Success', 'Logged in!');
       setEmail('');
       setPassword('');
@@ -118,20 +170,106 @@ export default function AuthScreen() {
       setLoading(true);
       setError(null);
 
+      console.log('Starting Google Sign-In...');
+      console.log('Redirect URI:', redirectUri);
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
+          redirectTo: redirectUri,
+          skipBrowserRedirect: false,
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent',
+            prompt: 'select_account',
           },
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase OAuth error:', error);
+        throw error;
+      }
+
+      console.log('OAuth URL generated:', data?.url);
+
+      if (data?.url) {
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          redirectUri,
+          {
+            showInRecents: true,
+          }
+        );
+
+        console.log('Browser result:', result);
+
+        if (result.type === 'success') {
+          const { url } = result;
+          
+          const urlParts = url.split('#')[1] || url.split('?')[1];
+          
+          if (!urlParts) {
+            throw new Error('No authentication data received');
+          }
+
+          const params = new URLSearchParams(urlParts);
+          
+          const access_token = params.get('access_token');
+          const refresh_token = params.get('refresh_token');
+
+          console.log('Access token found:', !!access_token);
+          console.log('Refresh token found:', !!refresh_token);
+
+          if (access_token && refresh_token) {
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+
+            if (sessionError) {
+              console.error('Session error:', sessionError);
+              throw sessionError;
+            }
+
+            const { data: { user: newUser } } = await supabase.auth.getUser();
+            
+            console.log('Session set successfully:', sessionData);
+            console.log('Logged in user:', newUser?.email);
+
+            // Check if user profile exists, if not create it
+            if (newUser) {
+              const { data: existingUser, error: fetchError } = await supabase
+                .from('users')
+                .select('id')
+                .eq('id', newUser.id)
+                .single();
+
+              if (fetchError?.code === 'PGRST116') {
+                // User doesn't exist, create profile
+                await createUserProfile(newUser.id, newUser.email);
+              }
+            }
+            
+            // Alert.alert('Success', 'Logged in with Google!');
+          } else {
+            throw new Error('Authentication tokens not found in response');
+          }
+        } else if (result.type === 'cancel') {
+          console.log('User cancelled sign-in');
+          setError('Google sign-in was cancelled');
+          Alert.alert('Cancelled', 'Google sign-in was cancelled');
+        } else if (result.type === 'dismiss') {
+          console.log('User dismissed sign-in');
+          setError('Google sign-in was dismissed');
+          Alert.alert('Dismissed', 'Google sign-in was dismissed');
+        }
+      } else {
+        throw new Error('No OAuth URL generated');
+      }
     } catch (err) {
+      console.error('Google Sign-In Error:', err);
       setError(err.message);
-      Alert.alert('Error', err.message);
+      Alert.alert('Error', err.message || 'Failed to sign in with Google');
     } finally {
       setLoading(false);
     }
@@ -139,16 +277,16 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent} 
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          {/* Header Section with Gradient Background */}
+          {/* Header Section */}
           <View style={styles.header}>
             <View style={styles.headerContent}>
               <Text style={styles.greeting}>Bonjour!</Text>
@@ -158,9 +296,9 @@ export default function AuthScreen() {
 
           {/* Form Card */}
           <View style={styles.formCard}>
-            {/* Back to Login/Sign Up Link */}
+            {/* Back Button */}
             {isSignUp && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => {
                   setIsSignUp(false);
@@ -185,7 +323,6 @@ export default function AuthScreen() {
 
             {/* Email Input */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputIcon}></Text>
               <TextInput
                 style={styles.input}
                 placeholder="Email"
@@ -200,7 +337,6 @@ export default function AuthScreen() {
 
             {/* Password Input */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputIcon}></Text>
               <TextInput
                 style={styles.input}
                 placeholder="Password"
@@ -216,7 +352,7 @@ export default function AuthScreen() {
             {isSignUp && (
               <>
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputIcon}></Text>
+                  <Text style={styles.inputIcon}>🔒</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Confirm Password"
@@ -229,7 +365,7 @@ export default function AuthScreen() {
                 </View>
 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputIcon}></Text>
+                  <Text style={styles.inputIcon}>📱</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Phone"
@@ -243,14 +379,14 @@ export default function AuthScreen() {
               </>
             )}
 
-            {/* Forgot Password (Login only) */}
+            {/* Forgot Password */}
             {!isSignUp && (
               <TouchableOpacity style={styles.forgotPassword}>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             )}
 
-            {/* Login/Sign Up Button */}
+            {/* Main Button */}
             <TouchableOpacity
               style={[styles.mainButton, loading && styles.mainButtonDisabled]}
               onPress={isSignUp ? handleEmailSignUp : handleEmailSignIn}
@@ -274,26 +410,20 @@ export default function AuthScreen() {
 
             {/* Social Login Buttons */}
             <View style={styles.socialButtons}>
-              <TouchableOpacity 
-                style={styles.socialButton}
-                disabled={loading}
-              >
+              <TouchableOpacity style={styles.socialButton} disabled={loading}>
                 <Text style={styles.socialIcon}>f</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.socialButton}
+              <TouchableOpacity
+                style={[styles.socialButton, styles.googleButton]}
                 onPress={handleGoogleSignIn}
                 disabled={loading}
               >
-                <Text style={styles.socialIcon}>G</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.socialButton}
-                disabled={loading}
-              >
-                <Text style={styles.socialIcon}>🍎</Text>
+                {loading ? (
+                  <ActivityIndicator color="#1a7f8e" size="small" />
+                ) : (
+                  <Text style={styles.googleIcon}>G</Text>
+                )}
               </TouchableOpacity>
             </View>
 
@@ -302,7 +432,7 @@ export default function AuthScreen() {
               <Text style={styles.switchText}>
                 {isSignUp ? 'Already have an account?' : "Don't have account?"}
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => {
                   setIsSignUp(!isSignUp);
                   setError(null);
@@ -369,7 +499,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 14,
-    color:'#1085a8ff',
+    color: '#1085a8ff',
     fontWeight: '600',
   },
   formTitle: {
@@ -468,10 +598,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e5e5',
   },
+  googleButton: {
+    backgroundColor: '#fff',
+    borderColor: '#1085a8ff',
+    borderWidth: 2,
+  },
   socialIcon: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1a7f8e',
+  },
+  googleIcon: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#1085a8ff',
   },
   switchContainer: {
     flexDirection: 'row',
