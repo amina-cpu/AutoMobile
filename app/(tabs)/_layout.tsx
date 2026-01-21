@@ -40,7 +40,7 @@ export default function TabLayout() {
           title: 'Acheter',
           tabBarIcon: ({ color }) => <Ionicons name="search" size={24} color={color} />,
         }}
-      />
+      /> 
       <Tabs.Screen
         name="sell"
         options={{
@@ -67,7 +67,8 @@ export default function TabLayout() {
         options={{
           href: null,
         }}
-      />
+      />    
+     
     </Tabs>
   );
 }

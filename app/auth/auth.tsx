@@ -22,6 +22,8 @@ WebBrowser.maybeCompleteAuthSession();
 const { height } = Dimensions.get('window');
 
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
+const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
+
 const redirectUri = AuthSession.makeRedirectUri({
   scheme: 'automobile',
   path: 'auth/callback',
@@ -38,41 +40,74 @@ export default function AuthScreen() {
 
   useEffect(() => {
     checkUser();
-    console.log('Redirect URI:', redirectUri);
   }, []);
 
   const checkUser = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        console.log('Already logged in as:', user.email);
+        console.log('✅ Already logged in as:', user.email);
       }
     } catch (error) {
-      console.log('Not logged in');
+      console.log('⚠️ Not logged in');
     }
   };
 
-  const createUserProfile = async (userId, userEmail, userPhone = null) => {
+  const createUserProfile = async (userId, userEmail, userPhone = null, accessToken = null) => {
     try {
-      console.log('Creating user profile for:', userId, userEmail);
+      console.log('👤 Creating user profile for:', userId);
       
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert([{
-          id: userId,
-          email: userEmail,
-          phone: userPhone || null,
-          account_type: 'buyer',
-        }]);
+      const profileData = {
+        id: userId,
+        email: userEmail,
+        phone: userPhone || null,
+        full_name: null,
+        username: userEmail?.split('@')[0] || 'user',
+        account_type: 'buyer',
+        avatar_url: null
+      };
 
-      if (insertError) {
-        console.error('Error creating user profile:', insertError);
-        throw insertError;
+      console.log('📤 Sending profile data:', profileData);
+      
+      // Build headers with authentication if available
+      const headers = {
+        'apikey': API_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      };
+
+      // Add auth token if available
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
-      console.log('User profile created successfully');
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/users`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(profileData)
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Profile creation failed:', response.status, errorText);
+        
+        // If user already exists (409), that's fine
+        if (response.status === 409) {
+          console.log('✅ Profile already exists');
+          return { success: true, existed: true };
+        }
+        
+        throw new Error(`Failed to create profile: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ User profile created:', data);
+      return { success: true, data };
     } catch (error) {
-      console.error('Error in createUserProfile:', error);
+      console.error('❌ Error creating profile:', error);
       throw error;
     }
   };
@@ -88,36 +123,79 @@ export default function AuthScreen() {
       return;
     }
 
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      console.log('📝 Starting sign up process...');
+
+      // Step 1: Create auth user
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            phone: phone,
-          }
-        }
       });
 
-      if (signUpError) throw signUpError;
-
-      // Create user profile in users table
-      if (data.user) {
-        await createUserProfile(data.user.id, email, phone);
+      if (signUpError) {
+        console.error('❌ Auth signup error:', signUpError);
+        throw signUpError;
       }
 
-      Alert.alert('Success', 'Account created! Check your email to confirm.');
+      console.log('✅ Auth user created:', authData.user?.id);
+
+      // Step 2: Get session immediately after signup
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.warn('⚠️ No session after signup - profile creation may fail');
+      }
+
+      // Step 3: Create database profile
+      if (authData.user) {
+        try {
+          await createUserProfile(
+            authData.user.id, 
+            email, 
+            phone,
+            session?.access_token
+          );
+        } catch (profileError) {
+          console.error('❌ Profile creation failed:', profileError);
+          // Don't fail the signup - user can still sign in
+          Alert.alert(
+            'Account Created',
+            'Your account was created but there was an issue setting up your profile. Please try signing in.',
+            [{ text: 'OK' }]
+          );
+          setEmail('');
+          setPassword('');
+          setConfirmPassword('');
+          setPhone('');
+          setIsSignUp(false);
+          setLoading(false);
+          return;
+        }
+      }
+
+      Alert.alert(
+        'Success', 
+        'Account created! You can now sign in.',
+        [{ text: 'OK' }]
+      );
+      
       setEmail('');
       setPassword('');
       setConfirmPassword('');
       setPhone('');
       setIsSignUp(false);
     } catch (err) {
-      setError(err.message);
-      Alert.alert('Error', err.message);
+      console.error('❌ Signup error:', err);
+      setError(err.message || 'Failed to sign up');
+      Alert.alert('Error', err.message || 'Failed to sign up');
     } finally {
       setLoading(false);
     }
@@ -133,24 +211,69 @@ export default function AuthScreen() {
       setLoading(true);
       setError(null);
 
+      console.log('🔑 Signing in...');
+
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (signInError) throw signInError;
+      if (signInError) {
+        console.error('❌ Sign in error:', signInError);
+        throw signInError;
+      }
 
-      // Check if user profile exists, if not create it
+      console.log('✅ Signed in:', data.user.id);
+
+      // Get session for authenticated requests
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        throw new Error('No session after sign in');
+      }
+
+      // Check if profile exists
       if (data.user) {
-        const { data: existingUser, error: fetchError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('id', data.user.id)
-          .single();
+        try {
+          console.log('🔍 Checking if profile exists...');
+          
+          const checkResponse = await fetch(
+            `${SUPABASE_URL}/rest/v1/users?id=eq.${data.user.id}`,
+            {
+              headers: {
+                'apikey': API_KEY,
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
 
-        if (fetchError?.code === 'PGRST116') {
-          // User doesn't exist, create profile
-          await createUserProfile(data.user.id, data.user.email);
+          const userData = await checkResponse.json();
+
+          if (!Array.isArray(userData) || userData.length === 0) {
+            console.log('⚠️ Profile not found, creating...');
+            await createUserProfile(
+              data.user.id, 
+              data.user.email,
+              null,
+              session.access_token
+            );
+          } else {
+            console.log('✅ Profile exists');
+          }
+        } catch (err) {
+          console.error('❌ Error checking/creating profile:', err);
+          // Try to create profile anyway
+          try {
+            await createUserProfile(
+              data.user.id, 
+              data.user.email,
+              null,
+              session.access_token
+            );
+          } catch (createErr) {
+            console.error('❌ Failed to create profile:', createErr);
+          }
         }
       }
 
@@ -158,8 +281,9 @@ export default function AuthScreen() {
       setEmail('');
       setPassword('');
     } catch (err) {
-      setError(err.message);
-      Alert.alert('Error', err.message);
+      console.error('❌ Sign in error:', err);
+      setError(err.message || 'Failed to sign in');
+      Alert.alert('Error', err.message || 'Failed to sign in');
     } finally {
       setLoading(false);
     }
@@ -170,8 +294,7 @@ export default function AuthScreen() {
       setLoading(true);
       setError(null);
 
-      console.log('Starting Google Sign-In...');
-      console.log('Redirect URI:', redirectUri);
+      console.log('🔑 Starting Google sign-in...');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -186,89 +309,98 @@ export default function AuthScreen() {
       });
 
       if (error) {
-        console.error('Supabase OAuth error:', error);
+        console.error('❌ OAuth error:', error);
         throw error;
       }
-
-      console.log('OAuth URL generated:', data?.url);
 
       if (data?.url) {
         const result = await WebBrowser.openAuthSessionAsync(
           data.url,
           redirectUri,
-          {
-            showInRecents: true,
-          }
+          { showInRecents: true }
         );
-
-        console.log('Browser result:', result);
 
         if (result.type === 'success') {
           const { url } = result;
-          
           const urlParts = url.split('#')[1] || url.split('?')[1];
-          
+
           if (!urlParts) {
             throw new Error('No authentication data received');
           }
 
           const params = new URLSearchParams(urlParts);
-          
           const access_token = params.get('access_token');
           const refresh_token = params.get('refresh_token');
 
-          console.log('Access token found:', !!access_token);
-          console.log('Refresh token found:', !!refresh_token);
-
           if (access_token && refresh_token) {
-            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+            const { error: sessionError } = await supabase.auth.setSession({
               access_token,
               refresh_token,
             });
 
             if (sessionError) {
-              console.error('Session error:', sessionError);
+              console.error('❌ Session error:', sessionError);
               throw sessionError;
             }
 
             const { data: { user: newUser } } = await supabase.auth.getUser();
-            
-            console.log('Session set successfully:', sessionData);
-            console.log('Logged in user:', newUser?.email);
 
-            // Check if user profile exists, if not create it
             if (newUser) {
-              const { data: existingUser, error: fetchError } = await supabase
-                .from('users')
-                .select('id')
-                .eq('id', newUser.id)
-                .single();
+              console.log('✅ Google user authenticated:', newUser.id);
+              
+              // Check if profile exists
+              try {
+                const checkResponse = await fetch(
+                  `${SUPABASE_URL}/rest/v1/users?id=eq.${newUser.id}`,
+                  {
+                    headers: {
+                      'apikey': API_KEY,
+                      'Authorization': `Bearer ${access_token}`,
+                      'Content-Type': 'application/json'
+                    }
+                  }
+                );
 
-              if (fetchError?.code === 'PGRST116') {
-                // User doesn't exist, create profile
-                await createUserProfile(newUser.id, newUser.email);
+                const userData = await checkResponse.json();
+
+                if (!Array.isArray(userData) || userData.length === 0) {
+                  console.log('📝 Creating profile for Google user...');
+                  await createUserProfile(
+                    newUser.id, 
+                    newUser.email,
+                    null,
+                    access_token
+                  );
+                } else {
+                  console.log('✅ Google user profile already exists');
+                }
+              } catch (err) {
+                console.error('❌ Error checking profile:', err);
+                // Try to create anyway
+                try {
+                  await createUserProfile(
+                    newUser.id, 
+                    newUser.email,
+                    null,
+                    access_token
+                  );
+                } catch (createErr) {
+                  console.error('❌ Failed to create profile:', createErr);
+                }
               }
+
+              Alert.alert('Success', 'Logged in with Google!');
             }
-            
-            // Alert.alert('Success', 'Logged in with Google!');
           } else {
-            throw new Error('Authentication tokens not found in response');
+            throw new Error('Authentication tokens not found');
           }
         } else if (result.type === 'cancel') {
-          console.log('User cancelled sign-in');
           setError('Google sign-in was cancelled');
-          Alert.alert('Cancelled', 'Google sign-in was cancelled');
-        } else if (result.type === 'dismiss') {
-          console.log('User dismissed sign-in');
-          setError('Google sign-in was dismissed');
-          Alert.alert('Dismissed', 'Google sign-in was dismissed');
         }
-      } else {
-        throw new Error('No OAuth URL generated');
       }
     } catch (err) {
-      console.error('Google Sign-In Error:', err);
-      setError(err.message);
+      console.error('❌ Google sign-in error:', err);
+      setError(err.message || 'Failed to sign in with Google');
       Alert.alert('Error', err.message || 'Failed to sign in with Google');
     } finally {
       setLoading(false);
@@ -286,7 +418,6 @@ export default function AuthScreen() {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          {/* Header Section */}
           <View style={styles.header}>
             <View style={styles.headerContent}>
               <Text style={styles.greeting}>Bonjour!</Text>
@@ -294,9 +425,7 @@ export default function AuthScreen() {
             </View>
           </View>
 
-          {/* Form Card */}
           <View style={styles.formCard}>
-            {/* Back Button */}
             {isSignUp && (
               <TouchableOpacity
                 style={styles.backButton}
@@ -311,17 +440,14 @@ export default function AuthScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Title */}
             <Text style={styles.formTitle}>{isSignUp ? 'Sign Up' : 'Login'}</Text>
 
-            {/* Error Message */}
             {error && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>⚠️ {error}</Text>
               </View>
             )}
 
-            {/* Email Input */}
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -335,7 +461,6 @@ export default function AuthScreen() {
               />
             </View>
 
-            {/* Password Input */}
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -348,7 +473,6 @@ export default function AuthScreen() {
               />
             </View>
 
-            {/* Sign Up Additional Fields */}
             {isSignUp && (
               <>
                 <View style={styles.inputContainer}>
@@ -368,7 +492,7 @@ export default function AuthScreen() {
                   <Text style={styles.inputIcon}>📱</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Phone"
+                    placeholder="Phone (optional)"
                     placeholderTextColor="#b0b0b0"
                     value={phone}
                     onChangeText={setPhone}
@@ -379,14 +503,12 @@ export default function AuthScreen() {
               </>
             )}
 
-            {/* Forgot Password */}
             {!isSignUp && (
               <TouchableOpacity style={styles.forgotPassword}>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             )}
 
-            {/* Main Button */}
             <TouchableOpacity
               style={[styles.mainButton, loading && styles.mainButtonDisabled]}
               onPress={isSignUp ? handleEmailSignUp : handleEmailSignIn}
@@ -401,14 +523,12 @@ export default function AuthScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Divider */}
             <View style={styles.dividerContainer}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>Or</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Social Login Buttons */}
             <View style={styles.socialButtons}>
               <TouchableOpacity style={styles.socialButton} disabled={loading}>
                 <Text style={styles.socialIcon}>f</Text>
@@ -427,7 +547,6 @@ export default function AuthScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Switch to Sign Up/Login */}
             <View style={styles.switchContainer}>
               <Text style={styles.switchText}>
                 {isSignUp ? 'Already have an account?' : "Don't have account?"}
@@ -453,179 +572,36 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a7f8e',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  header: {
-    height: height * 0.35,
-    backgroundColor: '#1085a8ff',
-    justifyContent: 'center',
-    paddingHorizontal: 30,
-    paddingTop: 40,
-  },
-  headerContent: {
-    marginTop: 20,
-  },
-  greeting: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#ffffff',
-    opacity: 0.9,
-  },
-  formCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 30,
-    paddingTop: 40,
-    paddingBottom: 30,
-    marginTop: -20,
-  },
-  backButton: {
-    marginBottom: 20,
-  },
-  backButtonText: {
-    fontSize: 14,
-    color: '#1085a8ff',
-    fontWeight: '600',
-  },
-  formTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1085a8ff',
-    marginBottom: 30,
-  },
-  errorContainer: {
-    backgroundColor: '#fee2e2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#dc2626',
-    fontSize: 14,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    height: 56,
-  },
-  inputIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-    marginTop: -8,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: '#1085a8ff',
-    fontWeight: '600',
-  },
-  mainButton: {
-    backgroundColor: '#1085a8ff',
-    borderRadius: 12,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#1a7f8e',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  mainButtonDisabled: {
-    opacity: 0.6,
-  },
-  mainButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e5e5e5',
-  },
-  dividerText: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginHorizontal: 16,
-  },
-  socialButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 24,
-  },
-  socialButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-  },
-  googleButton: {
-    backgroundColor: '#fff',
-    borderColor: '#1085a8ff',
-    borderWidth: 2,
-  },
-  socialIcon: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a7f8e',
-  },
-  googleIcon: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#1085a8ff',
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-  },
-  switchText: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  switchLink: {
-    fontSize: 14,
-    color: '#1085a8ff',
-    fontWeight: 'bold',
-  },
+  container: { flex: 1, backgroundColor: '#1a7f8e' },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+  header: { height: height * 0.35, backgroundColor: '#1085a8ff', justifyContent: 'center', paddingHorizontal: 30, paddingTop: 40 },
+  headerContent: { marginTop: 20 },
+  greeting: { fontSize: 48, fontWeight: 'bold', color: '#ffffff', marginBottom: 8 },
+  subtitle: { fontSize: 18, color: '#ffffff', opacity: 0.9 },
+  formCard: { flex: 1, backgroundColor: '#ffffff', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 30, paddingTop: 40, paddingBottom: 30, marginTop: -20 },
+  backButton: { marginBottom: 20 },
+  backButtonText: { fontSize: 14, color: '#1085a8ff', fontWeight: '600' },
+  formTitle: { fontSize: 32, fontWeight: 'bold', color: '#1085a8ff', marginBottom: 30 },
+  errorContainer: { backgroundColor: '#fee2e2', borderRadius: 8, padding: 12, marginBottom: 16, borderLeftWidth: 4, borderLeftColor: '#dc2626' },
+  errorText: { color: '#dc2626', fontSize: 14, fontWeight: '600' },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, height: 56 },
+  inputIcon: { fontSize: 20, marginRight: 12 },
+  input: { flex: 1, fontSize: 16, color: '#1f2937' },
+  forgotPassword: { alignSelf: 'flex-end', marginBottom: 24, marginTop: -8 },
+  forgotPasswordText: { fontSize: 14, color: '#1085a8ff', fontWeight: '600' },
+  mainButton: { backgroundColor: '#1085a8ff', borderRadius: 12, height: 56, justifyContent: 'center', alignItems: 'center', marginBottom: 24, shadowColor: '#1a7f8e', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  mainButtonDisabled: { opacity: 0.6 },
+  mainButtonText: { fontSize: 18, fontWeight: 'bold', color: '#ffffff' },
+  dividerContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e5e5' },
+  dividerText: { fontSize: 14, color: '#9ca3af', marginHorizontal: 16 },
+  socialButtons: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 24 },
+  socialButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e5e5e5' },
+  googleButton: { backgroundColor: '#fff', borderColor: '#1085a8ff', borderWidth: 2 },
+  socialIcon: { fontSize: 24, fontWeight: 'bold', color: '#1a7f8e' },
+  googleIcon: { fontSize: 26, fontWeight: 'bold', color: '#1085a8ff' },
+  switchContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
+  switchText: { fontSize: 14, color: '#6b7280' },
+  switchLink: { fontSize: 14, color: '#1085a8ff', fontWeight: 'bold' },
 });
