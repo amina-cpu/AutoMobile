@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   },
   carImagePlaceholder: { fontSize: 72 },
   dealBadge: { position: 'absolute', top: 160, left: 12, backgroundColor: '#1085a8ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  dealBadgeText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  dealBadgeText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   priceTag: { position: 'absolute', top: 170, right: 12, backgroundColor: '#f0f4f8', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 2, borderColor: '#1085a8ff' },
   priceTagText: { fontSize: 18, fontWeight: '800', color: '#1085a8ff' },
   likeButton: { position: 'absolute', top: 12, right: 12, backgroundColor: '#fff', borderRadius: 24, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
