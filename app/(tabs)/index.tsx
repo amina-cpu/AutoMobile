@@ -3,7 +3,6 @@ import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -16,132 +15,11 @@ import {
   View
 } from 'react-native';
 import { supabase } from '../src/config/supabase';
+
 const { width } = Dimensions.get('window');
 
-// Constants for direct fetch
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
-// Add this function to HomeScreen component
-const debugUserData = async () => {
-  try {
-    console.log('🔍 [DEBUG] Starting user data check...');
-    
-    // Step 1: Check auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError) {
-      Alert.alert('Auth Error', authError.message);
-      console.error('❌ [DEBUG] Auth error:', authError);
-      return;
-    }
-
-    if (!user) {
-      Alert.alert('No User', 'Not authenticated');
-      return;
-    }
-
-    console.log('✅ [DEBUG] User authenticated:', user.id);
-    console.log('📧 [DEBUG] Email:', user.email);
-    console.log('📦 [DEBUG] Metadata:', JSON.stringify(user.user_metadata, null, 2));
-
-    // Get session token
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      Alert.alert('Session Error', 'No session found. Please log in again.');
-      return;
-    }
-
-    // Step 2: Check database with authenticated request
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`,
-      {
-        headers: {
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${session.access_token}`, // ADD THIS!
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      Alert.alert('Database Error', `Status: ${response.status}\n${errorText}`);
-      return;
-    }
-
-    const userData = await response.json();
-    console.log('📦 [DEBUG] Database response:', JSON.stringify(userData, null, 2));
-
-    if (userData && userData.length > 0) {
-      const record = userData[0];
-      Alert.alert(
-        'User Data Found ✅',
-        `ID: ${record.id}\n` +
-        `Email: ${record.email}\n` +
-        `Username: ${record.username || 'Not set'}\n` +
-        `Full Name: ${record.full_name || 'Not set'}\n` +
-        `Account Type: ${record.account_type || 'Not set'}\n` +
-        `Phone: ${record.phone || 'Not set'}`
-      );
-    } else {
-      Alert.alert(
-        'No Database Record ⚠️',
-        'User is authenticated but has no database record.\n\nThis should have been created during sign-in.',
-        [
-          {
-            text: 'Create Now',
-            onPress: async () => {
-              try {
-                await createUserProfile(user.id, user.email, session.access_token);
-                Alert.alert('Success', 'Profile created! Refresh the screen.');
-                await getUserInfo();
-              } catch (error) {
-                Alert.alert('Error', error.message);
-              }
-            }
-          },
-          { text: 'Cancel', style: 'cancel' }
-        ]
-      );
-    }
-
-  } catch (error) {
-    console.error('❌ [DEBUG] Debug error:', error);
-    Alert.alert('Error', error.message);
-  }
-};
-
-// Add this helper function
-const createUserProfile = async (userId, userEmail, accessToken) => {
-  console.log('👤 [DEBUG] Creating user profile...');
-  
-  const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/users`,
-    {
-      method: 'POST',
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${accessToken}`, // ADD THIS!
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify({
-        id: userId,
-        email: userEmail,
-        username: userEmail?.split('@')[0] || 'user',
-        account_type: 'buyer',
-      })
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Profile creation failed: ${response.status} - ${errorText}`);
-  }
-
-  return response.json();
-};
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -198,80 +76,74 @@ export default function HomeScreen() {
     }
   };
 
- // Replace the getUserInfo function in HomeScreen.tsx with this:
+  const getUserInfo = async () => {
+    try {
+      console.log('🔍 Getting user info...');
+      
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('❌ Auth error:', userError);
+        return;
+      }
 
-const getUserInfo = async () => {
-  try {
-    console.log('🔍 Getting user info...');
-    
-    // Use Supabase ONLY for auth
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError) {
-      console.error('❌ Auth error:', userError);
-      return;
-    }
+      if (!user) {
+        console.log('⚠️ No user found');
+        return;
+      }
 
-    if (!user) {
-      console.log('⚠️ No user found');
-      return;
-    }
+      console.log('✅ User authenticated:', user.id);
 
-    console.log('✅ User authenticated:', user.id);
-
-    // Use direct fetch for database query
-    const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`,
-      {
-        headers: {
-          'apikey': API_KEY,
-          'Content-Type': 'application/json'
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`,
+        {
+          headers: {
+            'apikey': API_KEY,
+            'Content-Type': 'application/json'
+          }
         }
+      );
+      
+      if (!response.ok) {
+        console.error('❌ Database fetch failed:', response.status);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    );
-    
-    if (!response.ok) {
-      console.error('❌ Database fetch failed:', response.status);
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
 
-    const userData = await response.json();
-    console.log('📦 User data from DB:', userData);
-    
-    if (userData && userData.length > 0) {
-      const userRecord = userData[0];
+      const userData = await response.json();
+      console.log('📦 User data from DB:', userData);
       
-      // Priority: full_name > username > email > 'User'
-      const displayName = userRecord.full_name || 
-                         userRecord.username || 
-                         userRecord.email?.split('@')[0] || 
-                         'User';
-      
-      console.log('✅ Setting display name:', displayName);
-      setUserName(displayName);
-      
-      if (userRecord.avatar_url) {
-        console.log('✅ Setting avatar:', userRecord.avatar_url);
-        setUserImage(userRecord.avatar_url);
+      if (userData && userData.length > 0) {
+        const userRecord = userData[0];
+        
+        const displayName = userRecord.full_name || 
+                           userRecord.username || 
+                           userRecord.email?.split('@')[0] || 
+                           'User';
+        
+        console.log('✅ Setting display name:', displayName);
+        setUserName(displayName);
+        
+        if (userRecord.avatar_url) {
+          console.log('✅ Setting avatar:', userRecord.avatar_url);
+          setUserImage(userRecord.avatar_url);
+        }
+      } else {
+        console.log('⚠️ No user record in database, using auth metadata');
+        const displayName = user.user_metadata?.full_name || 
+                          user.user_metadata?.name || 
+                          user.email?.split('@')[0] || 
+                          'User';
+        
+        console.log('✅ Setting fallback name:', displayName);
+        setUserName(displayName);
       }
-    } else {
-      // Fallback to auth metadata
-      console.log('⚠️ No user record in database, using auth metadata');
-      const displayName = user.user_metadata?.full_name || 
-                        user.user_metadata?.name || 
-                        user.email?.split('@')[0] || 
-                        'User';
-      
-      console.log('✅ Setting fallback name:', displayName);
-      setUserName(displayName);
+    } catch (error) {
+      console.error('❌ Error in getUserInfo:', error);
+      setUserName('User');
     }
-  } catch (error) {
-    console.error('❌ Error in getUserInfo:', error);
-    setUserName('User');
-  }
-};
+  };
 
- const loadCars = async () => {
+  const loadCars = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -297,7 +169,6 @@ const getUserInfo = async () => {
       const data = await response.json();
       console.log('📦 Response type:', typeof data, 'Is Array:', Array.isArray(data), 'Length:', data?.length);
 
-      // Safe array check
       if (Array.isArray(data) && data.length > 0) {
         console.log('✅ Loaded', data.length, 'cars');
         setLatestCars(data);
@@ -321,6 +192,7 @@ const getUserInfo = async () => {
       setLoading(false);
     }
   };
+
   const toggleLike = (carId) => {
     setLiked(prev => ({
       ...prev,
@@ -375,7 +247,6 @@ const getUserInfo = async () => {
   );
 
   const renderCurrentCar = () => {
-    // Safe checks
     if (!Array.isArray(latestCars) || latestCars.length === 0) {
       return null;
     }
@@ -383,7 +254,6 @@ const getUserInfo = async () => {
     const item = latestCars[currentCarIndex];
     if (!item) return null;
 
-    // Safe image access
     const firstImage = 
       item.car_images && 
       Array.isArray(item.car_images) && 
@@ -412,7 +282,7 @@ const getUserInfo = async () => {
                 </View>
 
                 <View style={styles.priceTag}>
-                  <Text style={styles.priceTagText}>{item.price} €</Text>
+                  <Text style={styles.priceTagText}>{item.price} DA</Text>
                 </View>
 
                 <TouchableOpacity 
@@ -471,6 +341,7 @@ const getUserInfo = async () => {
       </View>
     );
   };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1085a8ff" translucent={true} />
@@ -491,7 +362,6 @@ const getUserInfo = async () => {
               <View style={styles.notificationDot} />
             </View>
           </TouchableOpacity>
-     
         </View>
 
         <View style={styles.greetingRow}>
@@ -618,9 +488,33 @@ const styles = StyleSheet.create({
   bellBottom: { width: 20, height: 4, backgroundColor: '#fff', borderBottomLeftRadius: 2, borderBottomRightRadius: 2, marginTop: -1 },
   bellClapper: { width: 4, height: 4, backgroundColor: '#fff', borderRadius: 2, position: 'absolute', bottom: 2, left: 8 },
   notificationDot: { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
-  carCard: { backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3, borderWidth: 1, borderColor: '#f0f0f0' },
-  carImageContainer: { position: 'relative', height: 200, backgroundColor: '#f9fafb', justifyContent: 'center', alignItems: 'center' },
-  carImage: { width: '100%', height: '100%', resizeMode: 'contain' },
+  carCard: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 10,
+    marginHorizontal: 10,
+    marginBottom: 20,
+    paddingTop: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 0,
+  },
+  carImageContainer: { 
+    position: 'relative', 
+    height: 230, 
+    // marginTop: 5,
+    backgroundColor: '#f9fafb', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  carImage: { 
+    // marginTop: 5,
+    width: '100%', 
+    height: '100%', 
+    resizeMode: 'cover' 
+  },
   carImagePlaceholder: { fontSize: 72 },
   dealBadge: { position: 'absolute', top: 160, left: 12, backgroundColor: '#1085a8ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
   dealBadgeText: { fontSize: 16, fontWeight: '700', color: '#fff' },
@@ -650,25 +544,13 @@ const styles = StyleSheet.create({
   categoriesTitle: { fontSize: 28, fontWeight: 'bold', color: '#1f2937', marginBottom: 8 },
   categoriesSubtitle: { fontSize: 16, color: '#666' },
   categoriesScroll: { paddingLeft: 24, paddingRight: 24 },
-  categoryCard: { backgroundColor: '#fff', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', marginRight: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, marginBottom: 10, elevation: 2, borderWidth: 1, borderColor: '#e5e7eb' },
+  categoryCard: { backgroundColor: '#fff', borderRadius: 16, paddingVertical: 14, borderWidth: 2, borderColor: '#1085a8ff', paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', marginRight: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, marginBottom: 10, elevation: 2 },
   categoryName: { fontSize: 14, fontWeight: '600', color: '#1f2937', textAlign: 'center' },
   latestCarsSection: { marginVertical: 24, marginBottom: 40, paddingHorizontal: 20 },
   latestCarsSectionTitle: { marginBottom: 24 },
   latestCarsTitle: { fontSize: 28, fontWeight: 'bold', color: '#1f2937' },
   errorContainer: { backgroundColor: '#fee2e2', borderRadius: 8, padding: 12, marginVertical: 12, marginHorizontal: 20 },
   errorText: { color: '#dc2626', fontSize: 14, fontWeight: '600' },
-  debugButton: {
-  width: 40,
-  height: 40,
-  borderRadius: 20,
-  backgroundColor: '#ef4444',
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginLeft: 8,
-},
-debugButtonText: {
-  fontSize: 20,
-},
   retryButton: { backgroundColor: '#1085a8ff', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, marginTop: 8, alignSelf: 'flex-start' },
   retryButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 });

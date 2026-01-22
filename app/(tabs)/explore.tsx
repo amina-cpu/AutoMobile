@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#1085a8ff',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 30,
     paddingBottom: 30,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -581,29 +581,33 @@ const styles = StyleSheet.create({
   },
   carCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    overflow: 'hidden',
+    // borderRadius: 30,s
+    // overflow: 'hidden',
+    paddingHorizontal:10,
+    marginHorizontal:10,
     marginBottom: 20,
-    marginHorizontal: 20,
+    paddingTop:30,
+ 
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderWidth: 0,
   },
   carImageContainer: {
     position: 'relative',
     height: 200,
+    // marginTop:30,
     backgroundColor: '#f9fafb',
     justifyContent: 'center',
     alignItems: 'center',
   },
   carImage: {
+    // marginTop:30,
     width: '100%',
     height: '100%',
-    resizeMode: 'contain',
+    resizeMode: 'cover',
   },
   carImagePlaceholder: {
     fontSize: 72,
