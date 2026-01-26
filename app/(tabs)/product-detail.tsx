@@ -29,6 +29,23 @@ export default function ProductDetailScreen() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
 
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // If it's already a full URL, return it
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // Otherwise, generate public URL from Supabase
+    const { data } = supabase.storage
+      .from('car-images')
+      .getPublicUrl(imagePath);
+    
+    return data?.publicUrl || null;
+  };
+
   useFocusEffect(
     useCallback(() => {
       const carId = route.params?.carId;
@@ -56,7 +73,6 @@ export default function ProductDetailScreen() {
       setLoading(true);
       setError(null);
 
-      // Fetch car details with direct fetch
       console.log('🚗 Fetching car details for ID:', carId);
       const carResponse = await fetch(
         `${SUPABASE_URL}/rest/v1/cars?select=*,car_images(*)&id=eq.${carId}`,
@@ -86,7 +102,7 @@ export default function ProductDetailScreen() {
         console.log('✅ User is owner of this car');
       }
 
-      // Fetch seller info with direct fetch
+      // Fetch seller info
       if (carInfo.seller_id) {
         console.log('👤 Fetching seller info...');
         try {
@@ -130,7 +146,7 @@ export default function ProductDetailScreen() {
         }
       }
 
-      // Fetch similar cars (same seller) - WITHOUT users join
+      // Fetch similar cars (same seller)
       if (carInfo.seller_id) {
         console.log('🚗 Fetching similar cars...');
         try {
@@ -154,7 +170,7 @@ export default function ProductDetailScreen() {
         }
       }
 
-      // Fetch recommended cars (same brand) - WITHOUT users join
+      // Fetch recommended cars (same brand)
       if (carInfo.brand) {
         console.log('🚗 Fetching recommended cars...');
         try {
@@ -178,10 +194,14 @@ export default function ProductDetailScreen() {
         }
       }
 
-      // Set car images
+      // Set car images with proper URLs
       if (carInfo.car_images && carInfo.car_images.length > 0) {
-        setCarImages(carInfo.car_images);
-        console.log(`✅ Found ${carInfo.car_images.length} images`);
+        const imagesWithUrls = carInfo.car_images.map(img => ({
+          ...img,
+          displayUrl: getImageUrl(img.image_url)
+        }));
+        setCarImages(imagesWithUrls);
+        console.log(`✅ Found ${imagesWithUrls.length} images`);
       }
 
     } catch (err) {
@@ -222,7 +242,7 @@ export default function ProductDetailScreen() {
       setDeleting(true);
       console.log('🗑️ Deleting car and images...');
 
-      // Delete car images first with direct fetch
+      // Delete car images first
       if (carImages.length > 0) {
         console.log('📸 Deleting car images...');
         for (const img of carImages) {
@@ -244,7 +264,7 @@ export default function ProductDetailScreen() {
         }
       }
 
-      // Delete car with direct fetch
+      // Delete car
       console.log('🚗 Deleting car...');
       const deleteResponse = await fetch(
         `${SUPABASE_URL}/rest/v1/cars?id=eq.${car.id}`,
@@ -348,7 +368,11 @@ export default function ProductDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.imageContainer}>
           {carImages.length > 0 ? (
-            <Image source={{ uri: carImages[currentImageIndex].image_url }} style={styles.carImage} />
+            <Image 
+              source={{ uri: carImages[currentImageIndex].displayUrl }} 
+              style={styles.carImage}
+              onError={(e) => console.error('Image load error:', e.nativeEvent.error)}
+            />
           ) : (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
               <Text style={{ fontSize: 80 }}>🚗</Text>
@@ -379,7 +403,10 @@ export default function ProductDetailScreen() {
         <View style={styles.carInfoCard}>
           <View style={styles.carInfoRow}>
             {carImages.length > 0 && (
-              <Image source={{ uri: carImages[0].image_url }} style={styles.carImageThumb} />
+              <Image 
+                source={{ uri: carImages[0].displayUrl }} 
+                style={styles.carImageThumb} 
+              />
             )}
             <View style={styles.carInfoContent}>
               <View>
@@ -427,38 +454,44 @@ export default function ProductDetailScreen() {
             <FlatList
               horizontal
               data={recommendedCars}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={styles.recommendedCard}
-                  onPress={() => {
-                    router.push({
-                      pathname: '/(tabs)/product-detail',
-                      params: { carId: item.id }
-                    });
-                  }}
-                >
-                  {item.car_images && item.car_images.length > 0 ? (
-                    <View style={styles.recommendedImage}>
-                      <Image
-                        source={{ uri: item.car_images[0].image_url }}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
+              renderItem={({ item }) => {
+                const firstImageUrl = item.car_images && item.car_images.length > 0 
+                  ? getImageUrl(item.car_images[0].image_url)
+                  : null;
+
+                return (
+                  <TouchableOpacity 
+                    style={styles.recommendedCard}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/(tabs)/product-detail',
+                        params: { carId: item.id }
+                      });
+                    }}
+                  >
+                    {firstImageUrl ? (
+                      <View style={styles.recommendedImage}>
+                        <Image
+                          source={{ uri: firstImageUrl }}
+                          style={{ width: '100%', height: '100%' }}
+                          resizeMode="cover"
+                        />
+                      </View>
+                    ) : (
+                      <View style={[styles.recommendedImage, { justifyContent: 'center', alignItems: 'center' }]}>
+                        <Text style={{ fontSize: 50 }}>🚗</Text>
+                      </View>
+                    )}
+                    <View style={styles.recommendedContent}>
+                      <Text style={styles.recommendedTitle}>{item.brand} {item.model}</Text>
+                      <Text style={styles.recommendedSubtitle}>
+                        {item.year} • {item.mileage} km • {item.fuel_type}
+                      </Text>
+                      <Text style={styles.recommendedPrice}>{item.price} €</Text>
                     </View>
-                  ) : (
-                    <View style={[styles.recommendedImage, { justifyContent: 'center', alignItems: 'center' }]}>
-                      <Text style={{ fontSize: 50 }}>🚗</Text>
-                    </View>
-                  )}
-                  <View style={styles.recommendedContent}>
-                    <Text style={styles.recommendedTitle}>{item.brand} {item.model}</Text>
-                    <Text style={styles.recommendedSubtitle}>
-                      {item.year} • {item.mileage} km • {item.fuel_type}
-                    </Text>
-                    <Text style={styles.recommendedPrice}>{item.price} €</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+                  </TouchableOpacity>
+                );
+              }}
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalScroll}
@@ -474,7 +507,10 @@ export default function ProductDetailScreen() {
               <View style={styles.sellerInfo}>
                 <View style={styles.sellerAvatar}>
                   {seller.avatar_url ? (
-                    <Image source={{ uri: seller.avatar_url }} style={styles.sellerAvatarImage} />
+                    <Image 
+                      source={{ uri: getImageUrl(seller.avatar_url) }} 
+                      style={styles.sellerAvatarImage} 
+                    />
                   ) : (
                     <Text style={styles.sellerAvatarText}>{getInitials(seller.full_name || seller.email)}</Text>
                   )}

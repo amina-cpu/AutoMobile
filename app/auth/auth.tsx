@@ -21,9 +21,6 @@ WebBrowser.maybeCompleteAuthSession();
 
 const { height } = Dimensions.get('window');
 
-const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
-const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
-
 const redirectUri = AuthSession.makeRedirectUri({
   scheme: 'automobile',
   path: 'auth/callback',
@@ -46,16 +43,16 @@ export default function AuthScreen() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        console.log('✅ Already logged in as:', user.email);
+        console.log('✅ Déjà connecté en tant que:', user.email);
       }
     } catch (error) {
-      console.log('⚠️ Not logged in');
+      console.log('⚠️ Non connecté');
     }
   };
 
-  const createUserProfile = async (userId, userEmail, userPhone = null, accessToken = null) => {
+  const createUserProfile = async (userId, userEmail, userPhone = null) => {
     try {
-      console.log('👤 Creating user profile for:', userId);
+      console.log('👤 Création du profil utilisateur pour:', userId);
       
       const profileData = {
         id: userId,
@@ -67,64 +64,47 @@ export default function AuthScreen() {
         avatar_url: null
       };
 
-      console.log('📤 Sending profile data:', profileData);
+      console.log('📤 Envoi des données du profil:', profileData);
       
-      // Build headers with authentication if available
-      const headers = {
-        'apikey': API_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      };
+      // Use Supabase client instead of fetch
+      const { data, error } = await supabase
+        .from('users')
+        .insert([profileData])
+        .select();
 
-      // Add auth token if available
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
-      }
-
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/users`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(profileData)
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Profile creation failed:', response.status, errorText);
+      if (error) {
+        console.error('❌ Erreur Supabase:', error);
         
-        // If user already exists (409), that's fine
-        if (response.status === 409) {
-          console.log('✅ Profile already exists');
+        // If user already exists (unique constraint), that's ok
+        if (error.code === '23505') {
+          console.log('✅ Le profil existe déjà');
           return { success: true, existed: true };
         }
         
-        throw new Error(`Failed to create profile: ${response.status}`);
+        throw new Error(`Impossible de créer le profil: ${error.message}`);
       }
 
-      const data = await response.json();
-      console.log('✅ User profile created:', data);
+      console.log('✅ Profil utilisateur créé:', data);
       return { success: true, data };
     } catch (error) {
-      console.error('❌ Error creating profile:', error);
+      console.error('❌ Erreur de création du profil:', error);
       throw error;
     }
   };
 
   const handleEmailSignUp = async () => {
     if (!email || !password || !confirmPassword) {
-      setError('Please fill in all fields');
+      setError('Veuillez remplir tous les champs');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Les mots de passe ne correspondent pas');
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Le mot de passe doit contenir au moins 6 caractères');
       return;
     }
 
@@ -132,43 +112,32 @@ export default function AuthScreen() {
       setLoading(true);
       setError(null);
 
-      console.log('📝 Starting sign up process...');
+      console.log('📝 Démarrage de l\'inscription...');
 
-      // Step 1: Create auth user
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
       });
 
       if (signUpError) {
-        console.error('❌ Auth signup error:', signUpError);
+        console.error('❌ Erreur d\'inscription:', signUpError);
         throw signUpError;
       }
 
-      console.log('✅ Auth user created:', authData.user?.id);
+      console.log('✅ Utilisateur créé:', authData.user?.id);
 
-      // Step 2: Get session immediately after signup
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        console.warn('⚠️ No session after signup - profile creation may fail');
-      }
-
-      // Step 3: Create database profile
       if (authData.user) {
         try {
           await createUserProfile(
             authData.user.id, 
             email, 
-            phone,
-            session?.access_token
+            phone
           );
         } catch (profileError) {
-          console.error('❌ Profile creation failed:', profileError);
-          // Don't fail the signup - user can still sign in
+          console.error('❌ Création du profil échouée:', profileError);
           Alert.alert(
-            'Account Created',
-            'Your account was created but there was an issue setting up your profile. Please try signing in.',
+            'Compte créé',
+            'Votre compte a été créé mais il y a eu un problème lors de la configuration de votre profil. Veuillez essayer de vous connecter.',
             [{ text: 'OK' }]
           );
           setEmail('');
@@ -182,8 +151,8 @@ export default function AuthScreen() {
       }
 
       Alert.alert(
-        'Success', 
-        'Account created! You can now sign in.',
+        'Succès', 
+        'Compte créé! Vous pouvez maintenant vous connecter.',
         [{ text: 'OK' }]
       );
       
@@ -193,9 +162,9 @@ export default function AuthScreen() {
       setPhone('');
       setIsSignUp(false);
     } catch (err) {
-      console.error('❌ Signup error:', err);
-      setError(err.message || 'Failed to sign up');
-      Alert.alert('Error', err.message || 'Failed to sign up');
+      console.error('❌ Erreur d\'inscription:', err);
+      setError(err.message || 'Impossible de s\'inscrire');
+      Alert.alert('Erreur', err.message || 'Impossible de s\'inscrire');
     } finally {
       setLoading(false);
     }
@@ -203,7 +172,7 @@ export default function AuthScreen() {
 
   const handleEmailSignIn = async () => {
     if (!email || !password) {
-      setError('Please fill in all fields');
+      setError('Veuillez remplir tous les champs');
       return;
     }
 
@@ -211,7 +180,7 @@ export default function AuthScreen() {
       setLoading(true);
       setError(null);
 
-      console.log('🔑 Signing in...');
+      console.log('🔑 Connexion...');
 
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
@@ -219,71 +188,57 @@ export default function AuthScreen() {
       });
 
       if (signInError) {
-        console.error('❌ Sign in error:', signInError);
+        console.error('❌ Erreur de connexion:', signInError);
         throw signInError;
       }
 
-      console.log('✅ Signed in:', data.user.id);
+      console.log('✅ Connecté:', data.user.id);
 
-      // Get session for authenticated requests
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        throw new Error('No session after sign in');
-      }
-
-      // Check if profile exists
       if (data.user) {
         try {
-          console.log('🔍 Checking if profile exists...');
+          console.log('🔍 Vérification de l\'existence du profil...');
           
-          const checkResponse = await fetch(
-            `${SUPABASE_URL}/rest/v1/users?id=eq.${data.user.id}`,
-            {
-              headers: {
-                'apikey': API_KEY,
-                'Authorization': `Bearer ${session.access_token}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
+          const { data: userData, error: fetchError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
 
-          const userData = await checkResponse.json();
+          if (fetchError && fetchError.code !== 'PGRST116') {
+            throw fetchError;
+          }
 
-          if (!Array.isArray(userData) || userData.length === 0) {
-            console.log('⚠️ Profile not found, creating...');
+          if (!userData) {
+            console.log('⚠️ Profil non trouvé, création...');
             await createUserProfile(
               data.user.id, 
               data.user.email,
-              null,
-              session.access_token
+              null
             );
           } else {
-            console.log('✅ Profile exists');
+            console.log('✅ Le profil existe');
           }
         } catch (err) {
-          console.error('❌ Error checking/creating profile:', err);
-          // Try to create profile anyway
+          console.error('❌ Erreur de vérification/création du profil:', err);
           try {
             await createUserProfile(
               data.user.id, 
               data.user.email,
-              null,
-              session.access_token
+              null
             );
           } catch (createErr) {
-            console.error('❌ Failed to create profile:', createErr);
+            console.error('❌ Impossible de créer le profil:', createErr);
           }
         }
       }
 
-      Alert.alert('Success', 'Logged in!');
+      Alert.alert('Succès', 'Connecté!');
       setEmail('');
       setPassword('');
     } catch (err) {
-      console.error('❌ Sign in error:', err);
-      setError(err.message || 'Failed to sign in');
-      Alert.alert('Error', err.message || 'Failed to sign in');
+      console.error('❌ Erreur de connexion:', err);
+      setError(err.message || 'Impossible de se connecter');
+      Alert.alert('Erreur', err.message || 'Impossible de se connecter');
     } finally {
       setLoading(false);
     }
@@ -294,7 +249,7 @@ export default function AuthScreen() {
       setLoading(true);
       setError(null);
 
-      console.log('🔑 Starting Google sign-in...');
+      console.log('🔑 Démarrage de la connexion Google...');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -309,7 +264,7 @@ export default function AuthScreen() {
       });
 
       if (error) {
-        console.error('❌ OAuth error:', error);
+        console.error('❌ Erreur OAuth:', error);
         throw error;
       }
 
@@ -325,7 +280,7 @@ export default function AuthScreen() {
           const urlParts = url.split('#')[1] || url.split('?')[1];
 
           if (!urlParts) {
-            throw new Error('No authentication data received');
+            throw new Error('Aucune donnée d\'authentification reçue');
           }
 
           const params = new URLSearchParams(urlParts);
@@ -339,69 +294,62 @@ export default function AuthScreen() {
             });
 
             if (sessionError) {
-              console.error('❌ Session error:', sessionError);
+              console.error('❌ Erreur de session:', sessionError);
               throw sessionError;
             }
 
             const { data: { user: newUser } } = await supabase.auth.getUser();
 
             if (newUser) {
-              console.log('✅ Google user authenticated:', newUser.id);
+              console.log('✅ Utilisateur Google authentifié:', newUser.id);
               
-              // Check if profile exists
               try {
-                const checkResponse = await fetch(
-                  `${SUPABASE_URL}/rest/v1/users?id=eq.${newUser.id}`,
-                  {
-                    headers: {
-                      'apikey': API_KEY,
-                      'Authorization': `Bearer ${access_token}`,
-                      'Content-Type': 'application/json'
-                    }
-                  }
-                );
+                const { data: userData, error: fetchError } = await supabase
+                  .from('users')
+                  .select('*')
+                  .eq('id', newUser.id)
+                  .single();
 
-                const userData = await checkResponse.json();
+                if (fetchError && fetchError.code !== 'PGRST116') {
+                  throw fetchError;
+                }
 
-                if (!Array.isArray(userData) || userData.length === 0) {
-                  console.log('📝 Creating profile for Google user...');
+                if (!userData) {
+                  console.log('📝 Création du profil pour l\'utilisateur Google...');
                   await createUserProfile(
                     newUser.id, 
                     newUser.email,
-                    null,
-                    access_token
+                    null
                   );
                 } else {
-                  console.log('✅ Google user profile already exists');
+                  console.log('✅ Le profil de l\'utilisateur Google existe déjà');
                 }
               } catch (err) {
-                console.error('❌ Error checking profile:', err);
-                // Try to create anyway
+                console.error('❌ Erreur de vérification du profil:', err);
                 try {
                   await createUserProfile(
                     newUser.id, 
                     newUser.email,
-                    null,
-                    access_token
+                    null
                   );
                 } catch (createErr) {
-                  console.error('❌ Failed to create profile:', createErr);
+                  console.error('❌ Impossible de créer le profil:', createErr);
                 }
               }
 
-              Alert.alert('Success', 'Logged in with Google!');
+              Alert.alert('Succès', 'Connecté avec Google!');
             }
           } else {
-            throw new Error('Authentication tokens not found');
+            throw new Error('Tokens d\'authentification non trouvés');
           }
         } else if (result.type === 'cancel') {
-          setError('Google sign-in was cancelled');
+          setError('Connexion Google annulée');
         }
       }
     } catch (err) {
-      console.error('❌ Google sign-in error:', err);
-      setError(err.message || 'Failed to sign in with Google');
-      Alert.alert('Error', err.message || 'Failed to sign in with Google');
+      console.error('❌ Erreur de connexion Google:', err);
+      setError(err.message || 'Impossible de se connecter avec Google');
+      Alert.alert('Erreur', err.message || 'Impossible de se connecter avec Google');
     } finally {
       setLoading(false);
     }
@@ -436,11 +384,11 @@ export default function AuthScreen() {
                   setPhone('');
                 }}
               >
-                <Text style={styles.backButtonText}>← Back to login</Text>
+                <Text style={styles.backButtonText}>← Retour à la connexion</Text>
               </TouchableOpacity>
             )}
 
-            <Text style={styles.formTitle}>{isSignUp ? 'Sign Up' : 'Login'}</Text>
+            <Text style={styles.formTitle}>{isSignUp ? 'Inscription' : 'Connexion'}</Text>
 
             {error && (
               <View style={styles.errorContainer}>
@@ -464,7 +412,7 @@ export default function AuthScreen() {
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder="Password"
+                placeholder="Mot de passe"
                 placeholderTextColor="#b0b0b0"
                 value={password}
                 onChangeText={setPassword}
@@ -479,7 +427,7 @@ export default function AuthScreen() {
                   <Text style={styles.inputIcon}>🔒</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Confirm Password"
+                    placeholder="Confirmer le mot de passe"
                     placeholderTextColor="#b0b0b0"
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
@@ -492,7 +440,7 @@ export default function AuthScreen() {
                   <Text style={styles.inputIcon}>📱</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Phone (optional)"
+                    placeholder="Téléphone (optionnel)"
                     placeholderTextColor="#b0b0b0"
                     value={phone}
                     onChangeText={setPhone}
@@ -505,7 +453,7 @@ export default function AuthScreen() {
 
             {!isSignUp && (
               <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                <Text style={styles.forgotPasswordText}>Mot de passe oublié?</Text>
               </TouchableOpacity>
             )}
 
@@ -518,14 +466,14 @@ export default function AuthScreen() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.mainButtonText}>
-                  {isSignUp ? 'Sign up' : 'Login'}
+                  {isSignUp ? 'S\'inscrire' : 'Se connecter'}
                 </Text>
               )}
             </TouchableOpacity>
 
             <View style={styles.dividerContainer}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Or</Text>
+              <Text style={styles.dividerText}>Ou</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -549,7 +497,7 @@ export default function AuthScreen() {
 
             <View style={styles.switchContainer}>
               <Text style={styles.switchText}>
-                {isSignUp ? 'Already have an account?' : "Don't have account?"}
+                {isSignUp ? 'Vous avez déjà un compte?' : 'Pas de compte?'}
               </Text>
               <TouchableOpacity
                 onPress={() => {
@@ -560,7 +508,7 @@ export default function AuthScreen() {
                 }}
               >
                 <Text style={styles.switchLink}>
-                  {isSignUp ? 'Login' : 'Sign up'}
+                  {isSignUp ? 'Se connecter' : 'S\'inscrire'}
                 </Text>
               </TouchableOpacity>
             </View>

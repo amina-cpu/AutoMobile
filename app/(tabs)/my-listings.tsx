@@ -1,15 +1,17 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
+import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/config/supabase';
@@ -17,19 +19,16 @@ import { supabase } from '../src/config/supabase';
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
 
-export default function ExploreScreen() {
+export default function MyListingsScreen() {
   const navigation = useNavigation();
-  const [cars, setCars] = useState([]);
-  const [filteredCars, setFilteredCars] = useState([]);
+  const [listings, setListings] = useState([]);
+  const [filteredListings, setFilteredListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [liked, setLiked] = useState({});
+  const [currentUser, setCurrentUser] = useState(null);
   const [location, setLocation] = useState('Chargement...');
-  const [brands, setBrands] = useState([]);
-  const [selectedBrand, setSelectedBrand] = useState(null);
-  const [brandsLoading, setBrandsLoading] = useState(true);
 
-  // Helper function to get image URL - SAME AS PRODUCT DETAIL
+  // Helper function to get image URL
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     
@@ -83,70 +82,30 @@ export default function ExploreScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 ExploreScreen focused - loading data');
-      loadCars();
-      loadBrands();
+      loadListings();
     }, [])
   );
 
-  const loadBrands = async () => {
+  const loadListings = async () => {
     try {
-      console.log('🏷️ Loading brands...');
-      setBrandsLoading(true);
-      
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/cars?select=brand`,
-        {
-          headers: {
-            'apikey': API_KEY,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Brands fetch failed:', response.status, errorText);
-        setBrands(['Tous']);
-        setBrandsLoading(false);
-        return;
-      }
-
-      const data = await response.json();
-      console.log('📦 Brands data received:', Array.isArray(data) ? `${data.length} items` : typeof data);
-
-      if (!Array.isArray(data)) {
-        console.error('❌ Brands data is not an array:', data);
-        setBrands(['Tous']);
-        setBrandsLoading(false);
-        return;
-      }
-
-      if (data.length === 0) {
-        console.log('⚠️ No brands found in database');
-        setBrands(['Tous']);
-        setBrandsLoading(false);
-        return;
-      }
-
-      const uniqueBrands = [...new Set(data.map(car => car.brand))].filter(Boolean);
-      setBrands(['Tous', ...uniqueBrands.sort()]);
-      console.log(`✅ Loaded ${uniqueBrands.length} unique brands:`, uniqueBrands);
-    } catch (error) {
-      console.error('❌ Error loading brands:', error);
-      setBrands(['Tous']);
-    } finally {
-      setBrandsLoading(false);
-    }
-  };
-
-  const loadCars = async () => {
-    try {
-      console.log('🚗 Loading all cars...');
       setLoading(true);
+      console.log('👤 Fetching current user...');
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       
+      if (userError || !user) {
+        console.error('❌ Authentication error');
+        Alert.alert('Erreur', 'Vous devez être connecté');
+        setLoading(false);
+        return;
+      }
+
+      setCurrentUser(user);
+      console.log('✅ Current user:', user.id);
+
+      console.log('📋 Loading user listings...');
       const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/cars?select=*,car_images(*)&order=created_at.desc`,
+        `${SUPABASE_URL}/rest/v1/cars?select=*,car_images(*)&seller_id=eq.${user.id}&order=created_at.desc`,
         {
           headers: {
             'apikey': API_KEY,
@@ -157,89 +116,101 @@ export default function ExploreScreen() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Cars fetch failed:', response.status, errorText);
-        setCars([]);
-        setFilteredCars([]);
+        console.error('❌ Load failed:', response.status, errorText);
+        Alert.alert('Erreur', 'Impossible de charger vos annonces');
         setLoading(false);
         return;
       }
 
       const data = await response.json();
-      console.log('📦 Cars data received:', Array.isArray(data) ? `${data.length} cars` : typeof data);
-
-      if (!Array.isArray(data)) {
-        console.error('❌ Cars data is not an array:', data);
-        setCars([]);
-        setFilteredCars([]);
-        setLoading(false);
-        return;
-      }
+      console.log(`✅ Loaded ${data?.length || 0} listings`);
 
       // Process images with proper URLs
-      const processedCars = data.map(car => ({
+      const processedListings = Array.isArray(data) ? data.map(car => ({
         ...car,
         car_images: car.car_images ? car.car_images.map(img => ({
           ...img,
           displayUrl: getImageUrl(img.image_url)
         })) : []
-      }));
+      })) : [];
 
-      setCars(processedCars);
-      setFilteredCars(processedCars);
-      console.log(`✅ Loaded ${processedCars.length} cars`);
+      setListings(processedListings);
+      setFilteredListings(processedListings);
+      setLoading(false);
     } catch (error) {
-      console.error('❌ Error loading cars:', error);
-      setCars([]);
-      setFilteredCars([]);
-    } finally {
+      console.error('❌ Error:', error);
+      Alert.alert('Erreur', 'Une erreur est survenue');
       setLoading(false);
     }
   };
 
   const handleSearch = (text) => {
     setSearchQuery(text);
-    filterCars(text, selectedBrand);
-  };
-
-  const handleBrandSelect = (brand) => {
-    if (brand === 'Tous') {
-      setSelectedBrand(null);
-      filterCars(searchQuery, null);
+    if (text.trim() === '') {
+      setFilteredListings(listings);
     } else {
-      const newBrand = selectedBrand === brand ? null : brand;
-      setSelectedBrand(newBrand);
-      filterCars(searchQuery, newBrand);
-    }
-  };
-
-  const filterCars = (query, brand) => {
-    let filtered = Array.isArray(cars) ? [...cars] : [];
-
-    if (brand && brand !== 'Tous') {
-      filtered = filtered.filter(car => car.brand?.toLowerCase() === brand.toLowerCase());
-    }
-
-    if (query.trim()) {
-      const searchLower = query.toLowerCase();
-      filtered = filtered.filter(car => {
-        const brandMatch = car.brand?.toLowerCase().includes(searchLower) || false;
-        const modelMatch = car.model?.toLowerCase().includes(searchLower) || false;
-        const yearMatch = car.year?.toString().includes(query) || false;
-        const fuelTypeMatch = car.fuel_type?.toLowerCase().includes(searchLower) || false;
-        const transmissionMatch = car.transmission?.toLowerCase().includes(searchLower) || false;
-
-        return brandMatch || modelMatch || yearMatch || fuelTypeMatch || transmissionMatch;
+      const searchLower = text.toLowerCase();
+      const filtered = listings.filter(car => {
+        const brandMatch = car.brand?.toLowerCase().includes(searchLower);
+        const modelMatch = car.model?.toLowerCase().includes(searchLower);
+        return brandMatch || modelMatch;
       });
+      setFilteredListings(filtered);
     }
-
-    setFilteredCars(filtered);
   };
 
-  const toggleLike = (carId) => {
-    setLiked(prev => ({
-      ...prev,
-      [carId]: !prev[carId]
-    }));
+  const handleDelete = (listing) => {
+    Alert.alert(
+      'Supprimer l\'annonce',
+      `Êtes-vous sûr de vouloir supprimer "${listing.brand} ${listing.model}"?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => confirmDelete(listing.id),
+        },
+      ]
+    );
+  };
+
+  const confirmDelete = async (listingId) => {
+    try {
+      console.log('🗑️ Deleting listing:', listingId);
+
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/cars?id=eq.${listingId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': API_KEY,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Delete failed: ${response.status}`);
+      }
+
+      setListings(prev => prev.filter(item => item.id !== listingId));
+      setFilteredListings(prev => prev.filter(item => item.id !== listingId));
+      Alert.alert('Succès', 'Annonce supprimée avec succès');
+      console.log('✅ Listing deleted');
+    } catch (error) {
+      console.error('❌ Error:', error);
+      Alert.alert('Erreur', 'Impossible de supprimer l\'annonce');
+    }
+  };
+
+  const handleEditListing = (listing) => {
+    router.push({
+      pathname: '/EditCarScreen',
+      params: { 
+        carId: listing.id, 
+        carData: JSON.stringify(listing) 
+      }
+    });
   };
 
   const renderCarCard = ({ item }) => {
@@ -273,15 +244,23 @@ export default function ExploreScreen() {
             </View>
 
             <TouchableOpacity 
-              style={styles.likeButton}
+              style={styles.editBtn}
               onPress={(e) => {
                 e.stopPropagation();
-                toggleLike(item.id);
+                handleEditListing(item);
               }}
             >
-              <Text style={styles.likeIcon}>
-                {liked[item.id] ? '❤️' : '🤍'}
-              </Text>
+              <Text style={styles.editBtnIcon}>✏️</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.deleteBtn}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDelete(item);
+              }}
+            >
+              <Text style={styles.deleteBtnIcon}>🗑️</Text>
             </TouchableOpacity>
           </View>
           
@@ -310,10 +289,43 @@ export default function ExploreScreen() {
     );
   };
 
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyIcon}>📭</Text>
+      <Text style={styles.emptyTitle}>Aucune annonce</Text>
+      <Text style={styles.emptyText}>
+        Vous n'avez pas encore publié d'annonces
+      </Text>
+      <TouchableOpacity
+        style={styles.createButton}
+        onPress={() => router.push('/(tabs)/sell')}
+      >
+        <Text style={styles.createButtonText}>Créer une annonce</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1085a8ff" />
+          <Text style={styles.loadingText}>Chargement...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerContainer}>
         <View style={styles.locationRow}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
           <View style={styles.locationTextRow}>
             <Text style={styles.locationText}>{location} ▼</Text>
           </View>
@@ -347,77 +359,25 @@ export default function ExploreScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Marques</Text>
+          <Text style={styles.sectionTitle}>Mes annonces</Text>
         </View>
 
-        {brandsLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#1085a8ff" />
-          </View>
-        ) : brands.length > 0 ? (
-          <View style={styles.brandsScrollContainer}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.brandsScroll}
-            >
-              {brands.map((brand, index) => (
-                <TouchableOpacity 
-                  key={index} 
-                  style={[
-                    styles.brandCard,
-                    (selectedBrand === brand || (brand === 'Tous' && selectedBrand === null)) && styles.brandCardActive
-                  ]}
-                  onPress={() => handleBrandSelect(brand)}
-                >
-                  <Text style={[
-                    styles.brandName,
-                    (selectedBrand === brand || (brand === 'Tous' && selectedBrand === null)) && styles.brandNameActive
-                  ]}>
-                    {brand}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Aucune marque disponible</Text>
-          </View>
-        )}
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Voitures Populaire</Text>
-        </View>
-
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#1085a8ff" />
-            <Text style={styles.loadingText}>Chargement des voitures...</Text>
-          </View>
-        ) : !Array.isArray(filteredCars) ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Erreur de chargement des données</Text>
-          </View>
-        ) : filteredCars.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {selectedBrand 
-                ? `Aucun véhicule trouvé pour "${selectedBrand}"`
-                : searchQuery 
-                  ? `Aucun véhicule trouvé pour "${searchQuery}"`
-                  : 'Aucun véhicule disponible'
-              }
-            </Text>
-          </View>
-        ) : (
+        {filteredListings.length > 0 ? (
           <View style={styles.carListingContainer}>
-            {filteredCars.map((item) => (
+            {filteredListings.map((item) => (
               <View key={item.id}>
                 {renderCarCard({ item })}
               </View>
             ))}
           </View>
+        ) : searchQuery.trim() !== '' ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              Aucune annonce trouvée pour "{searchQuery}"
+            </Text>
+          </View>
+        ) : (
+          renderEmptyState()
         )}
       </ScrollView>
     </SafeAreaView>
@@ -443,9 +403,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backIcon: {
+    fontSize: 24,
+    color: '#fff',
+    marginBottom:7,
+    fontWeight: '600',
+  },
   locationTextRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    marginLeft: -40,
   },
   locationText: {
     fontSize: 15,
@@ -539,40 +516,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1f2937',
   },
-  brandsScrollContainer: {
-    marginBottom: 16,
-  },
-  brandsScroll: {
-    paddingHorizontal: 20,
-  },
-  brandCard: {
-    height: 70,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#1085a8ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  brandCardActive: {
-    backgroundColor: '#1085a8ff',
-  },
-  brandName: {
-    fontSize: 13,
-    color: '#1085a8ff',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  brandNameActive: {
-    color: '#fff',
-  },
   carListingContainer: {
     paddingBottom: 100,
   },
@@ -594,10 +537,32 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     paddingHorizontal: 20,
   },
+  emptyIcon: {
+    fontSize: 80,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
   emptyText: {
     fontSize: 16,
     color: '#9ca3af',
     textAlign: 'center',
+    marginBottom: 24,
+  },
+  createButton: {
+    backgroundColor: '#1085a8ff',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  createButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   carCard: {
     backgroundColor: '#fff',
@@ -660,14 +625,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1085a8ff',
   },
-  likeButton: {
+  editBtn: {
     position: 'absolute',
     top: 12,
-    right: 12,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    width: 40,
-    height: 40,
+    right: 52,
+    backgroundColor: '#e0f2fe',
+    borderRadius: 8,
+    width: 36,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -676,8 +641,27 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  likeIcon: {
-    fontSize: 20,
+  editBtnIcon: {
+    fontSize: 16,
+  },
+  deleteBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#fee2e2',
+    borderRadius: 8,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  deleteBtnIcon: {
+    fontSize: 16,
   },
   carInfo: {
     padding: 16,

@@ -65,13 +65,10 @@ export default function SellScreen() {
 
   const getCurrentUser = async () => {
     try {
-      console.log('👤 Getting current user from auth...');
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setCurrentUser(user);
         console.log('✅ Current user:', user.email);
-      } else {
-        console.log('⚠️ No user logged in');
       }
     } catch (error) {
       console.error('❌ Error getting user:', error);
@@ -111,42 +108,132 @@ export default function SellScreen() {
     setPhotos(prev => ({ ...prev, [photoType]: null }));
   };
 
+  // FIXED: Upload single image to Supabase Storage using ArrayBuffer
+  const uploadImageToStorage = async (imageUri, carId, photoType, index) => {
+    try {
+      console.log(`📤 Uploading ${photoType} to storage...`);
+      console.log(`🔗 Image URI: ${imageUri}`);
+      
+      // Create unique filename
+      const fileName = `${carId}_${photoType}_${Date.now()}.jpg`;
+      const filePath = `cars/${carId}/${fileName}`;
+
+      console.log(`📁 File path: ${filePath}`);
+
+      // Fetch the image and convert to ArrayBuffer (works in React Native)
+      const response = await fetch(imageUri);
+      const arrayBuffer = await response.arrayBuffer();
+      
+      console.log(`📦 ArrayBuffer size: ${arrayBuffer.byteLength} bytes`);
+
+      // Upload to Supabase Storage using ArrayBuffer
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('car-images')
+        .upload(filePath, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error(`❌ Storage upload error for ${photoType}:`, uploadError);
+        throw uploadError;
+      }
+
+      console.log(`✅ ${photoType} uploaded to storage:`, uploadData.path);
+
+      // Get public URL using the file path (not full path)
+      const { data: publicUrlData } = supabase.storage
+        .from('car-images')
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData.publicUrl;
+      console.log(`🔗 Public URL for ${photoType}:`, publicUrl);
+
+      // Return just the file path (for database storage)
+      return filePath;
+    } catch (error) {
+      console.error(`❌ Error uploading ${photoType}:`, error);
+      throw error;
+    }
+  };
+
+  // Save image record to database
+  const saveImageToDatabase = async (carId, imagePath, displayOrder, accessToken) => {
+    try {
+      console.log('💾 Saving image path to database...');
+      console.log('🔗 Image path:', imagePath);
+      
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/car_images`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': API_KEY,
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
+            car_id: carId,
+            image_url: imagePath, // Store the file path, not full URL
+            display_order: displayOrder,
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('❌ Database save error:', error);
+        throw new Error('Failed to save image to database');
+      }
+
+      const data = await response.json();
+      console.log('✅ Image saved to database:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Error saving to database:', error);
+      throw error;
+    }
+  };
+
+  // Upload all images
   const uploadImages = async (carId, accessToken) => {
-    console.log('📤 Uploading images...');
+    console.log('📸 Starting image upload process...');
     const photoEntries = Object.entries(photos).filter(([_, uri]) => uri);
+
+    if (photoEntries.length === 0) {
+      console.log('⚠️ No images to upload');
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
 
     for (let i = 0; i < photoEntries.length; i++) {
       try {
         const [photoType, imageUri] = photoEntries[i];
-        console.log(`Uploading ${photoType}...`);
-
-        const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/car_images`,
-          {
-            method: 'POST',
-            headers: {
-              'apikey': API_KEY,
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              car_id: carId,
-              image_url: imageUri,
-              display_order: i,
-            })
-          }
-        );
-
-        if (!response.ok) {
-          const error = await response.text();
-          console.error(`❌ Error uploading ${photoType}:`, error);
-          continue;
-        }
-
-        console.log(`✅ ${photoType} uploaded`);
+        
+        // Step 1: Upload to Supabase Storage (returns file path)
+        const filePath = await uploadImageToStorage(imageUri, carId, photoType, i);
+        
+        // Step 2: Save file path to database
+        await saveImageToDatabase(carId, filePath, i, accessToken);
+        
+        successCount++;
+        console.log(`✅ Successfully processed ${photoType} (${successCount}/${photoEntries.length})`);
       } catch (error) {
-        console.error(`Error saving ${photoEntries[i][0]}:`, error);
+        failCount++;
+        console.error(`❌ Failed to process image ${i + 1}:`, error);
       }
+    }
+
+    console.log(`📊 Upload complete: ${successCount} succeeded, ${failCount} failed`);
+    
+    if (failCount > 0) {
+      Alert.alert(
+        'Attention',
+        `${successCount} image(s) uploadée(s), ${failCount} échouée(s). Votre annonce a été créée.`
+      );
     }
   };
 
@@ -183,15 +270,12 @@ export default function SellScreen() {
         return;
       }
 
-      // Get session token for authenticated requests
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
         Alert.alert('Erreur', 'Session expirée. Veuillez vous reconnecter.');
         return;
       }
-
-      console.log('✅ Session token obtained');
 
       const carData = {
         owner_id: currentUser.id,
@@ -211,7 +295,6 @@ export default function SellScreen() {
       };
 
       console.log('🚗 Creating car listing...');
-      console.log('Car data:', carData);
 
       const createResponse = await fetch(
         `${SUPABASE_URL}/rest/v1/cars`,
@@ -227,28 +310,23 @@ export default function SellScreen() {
         }
       );
 
-      console.log('Response status:', createResponse.status);
-
       if (!createResponse.ok) {
         const errorText = await createResponse.text();
         console.error('❌ Create failed:', errorText);
-        throw new Error(`Failed to create car: ${createResponse.status} - ${errorText}`);
+        throw new Error(`Échec de création: ${createResponse.status}`);
       }
 
       const responseData = await createResponse.json();
-      console.log('Response data:', responseData);
-
       const newCar = Array.isArray(responseData) ? responseData[0] : responseData;
 
       if (!newCar || !newCar.id) {
-        throw new Error('Failed to get car ID from response');
+        throw new Error('ID de voiture non reçu');
       }
 
       console.log('✅ Car created with ID:', newCar.id);
 
-      // Upload images
+      // Upload images to storage
       if (Object.values(photos).some(p => p)) {
-        console.log('📸 Uploading images...');
         await uploadImages(newCar.id, session.access_token);
       }
 
@@ -278,7 +356,7 @@ export default function SellScreen() {
         ]
       );
     } catch (error) {
-      console.error('❌ Error submitting:', error);
+      console.error('❌ Error:', error);
       Alert.alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setLoading(false);
@@ -300,26 +378,37 @@ export default function SellScreen() {
             </Text>
 
             <View style={styles.photoGrid}>
-              {['cover', 'front', 'back', 'interior'].map((type) => (
+              {[
+                { key: 'cover', label: 'Photo de couverture', icon: '📷' },
+                { key: 'front', label: '3/4 avant', icon: '🚗' },
+                { key: 'back', label: '3/4 arrière', icon: '🚗' },
+                { key: 'interior', label: 'Intérieur', icon: '🚗' }
+              ].map(({ key, label, icon }) => (
                 <TouchableOpacity
-                  key={type}
-                  style={[styles.photoBox, photos[type] && styles.photoBoxFilled]}
-                  onPress={() => pickImage(type)}
+                  key={key}
+                  style={[styles.photoBox, photos[key] && styles.photoBoxFilled]}
+                  onPress={() => pickImage(key)}
                 >
-                  {photos[type] ? (
+                  {photos[key] ? (
                     <>
-                      <Image source={{ uri: photos[type] }} style={styles.photoImage} />
+                      <Image source={{ uri: photos[key] }} style={styles.photoImage} />
+                      <View style={styles.photoLabel}>
+                        <Text style={styles.photoLabelText}>{label}</Text>
+                      </View>
                       <TouchableOpacity
                         style={styles.removePhotoButton}
-                        onPress={() => removePhoto(type)}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          removePhoto(key);
+                        }}
                       >
                         <Text style={styles.removePhotoText}>×</Text>
                       </TouchableOpacity>
                     </>
                   ) : (
                     <View style={styles.photoIconContainer}>
-                      <Text style={{ fontSize: 50, color: '#1085a8ff' }}>📷</Text>
-                      <Text style={styles.photoText}>{type}</Text>
+                      <Text style={{ fontSize: 50, color: '#1085a8ff' }}>{icon}</Text>
+                      <Text style={styles.photoText}>{label}</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -342,6 +431,7 @@ export default function SellScreen() {
                 <Text style={[styles.pickerButtonText, !formData.brand && styles.pickerPlaceholder]}>
                   {formData.brand || 'Choisissez'}
                 </Text>
+                <Text style={styles.pickerArrow}>›</Text>
               </TouchableOpacity>
             </View>
 
@@ -364,6 +454,7 @@ export default function SellScreen() {
                 <Text style={[styles.pickerButtonText, !formData.year && styles.pickerPlaceholder]}>
                   {formData.year || 'Choisissez'}
                 </Text>
+                <Text style={styles.pickerArrow}>›</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -372,7 +463,7 @@ export default function SellScreen() {
       case 3:
         return (
           <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Plus d'infos</Text>
+            <Text style={styles.stepTitle}>Plus d'informations</Text>
 
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Kilométrage <Text style={styles.required}>*</Text></Text>
@@ -394,11 +485,12 @@ export default function SellScreen() {
                 <Text style={[styles.pickerButtonText, !formData.fuel_type && styles.pickerPlaceholder]}>
                   {formData.fuel_type || 'Choisissez'}
                 </Text>
+                <Text style={styles.pickerArrow}>›</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Boîte <Text style={styles.required}>*</Text></Text>
+              <Text style={styles.fieldLabel}>Boîte de vitesse <Text style={styles.required}>*</Text></Text>
               <TouchableOpacity
                 style={styles.pickerButton}
                 onPress={() => openModal('transmission', transmissions)}
@@ -406,6 +498,7 @@ export default function SellScreen() {
                 <Text style={[styles.pickerButtonText, !formData.transmission && styles.pickerPlaceholder]}>
                   {formData.transmission || 'Choisissez'}
                 </Text>
+                <Text style={styles.pickerArrow}>›</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -417,7 +510,7 @@ export default function SellScreen() {
             <Text style={styles.stepTitle}>Prix et description</Text>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Prix (DA) <Text style={styles.required}>*</Text></Text>
+              <Text style={styles.fieldLabel}>Prix (€) <Text style={styles.required}>*</Text></Text>
               <TextInput
                 style={styles.input}
                 placeholder="15000"
@@ -428,10 +521,10 @@ export default function SellScreen() {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Description</Text>
+              <Text style={styles.fieldLabel}>Description (optionnel)</Text>
               <TextInput
                 style={[styles.input, { height: 120, textAlignVertical: 'top' }]}
-                placeholder="Décrivez l'état..."
+                placeholder="Décrivez l'état, les équipements, l'historique..."
                 value={formData.description}
                 onChangeText={(value) => setFormData(prev => ({ ...prev, description: value }))}
                 multiline
@@ -501,13 +594,27 @@ export default function SellScreen() {
             style={styles.modalContent}
             onPress={(e) => e.stopPropagation()}
           >
-            <TextInput
-              style={styles.modalSearchInput}
-              placeholder="Rechercher..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-            />
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {modalType === 'brand' && 'Marque'}
+                {modalType === 'year' && 'Année'}
+                {modalType === 'fuel_type' && 'Énergie'}
+                {modalType === 'transmission' && 'Boîte de vitesse'}
+              </Text>
+            </View>
+
+            {(modalType === 'brand' || modalType === 'year') && (
+              <View style={styles.modalSearchContainer}>
+                <TextInput
+                  style={styles.modalSearchInput}
+                  placeholder="Rechercher..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoFocus
+                />
+              </View>
+            )}
 
             <ScrollView style={styles.modalList}>
               {filteredModalData.map((item, index) => (
@@ -555,19 +662,26 @@ const styles = StyleSheet.create({
   photoBox: { width: (width - 52) / 2, aspectRatio: 1, backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 2, borderColor: '#1085a8ff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   photoBoxFilled: { borderWidth: 3 },
   photoImage: { width: '100%', height: '100%' },
+  photoLabel: { position: 'absolute', top: 12, left: 12, right: 12, backgroundColor: '#1085a8ff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+  photoLabelText: { color: '#ffffff', fontSize: 12, fontWeight: '700', textAlign: 'center' },
   photoIconContainer: { alignItems: 'center', padding: 16 },
-  photoText: { fontSize: 14, fontWeight: '600', color: '#1085a8ff', textAlign: 'center', marginTop: 8 },
+  photoText: { fontSize: 12, fontWeight: '600', color: '#1085a8ff', textAlign: 'center', marginTop: 8, lineHeight: 16 },
   removePhotoButton: { position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center' },
   removePhotoText: { color: '#ffffff', fontSize: 20, fontWeight: 'bold' },
   fieldContainer: { marginBottom: 20 },
   fieldLabel: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 12 },
-  pickerButton: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, paddingVertical: 20, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  pickerButton: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pickerButtonText: { fontSize: 16, color: '#1f2937' },
   pickerPlaceholder: { color: '#94a3b8' },
+  pickerArrow: { fontSize: 20, color: '#64748b' },
   input: { backgroundColor: '#f8fafc', borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 16, fontSize: 16, color: '#1f2937' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
-  modalSearchInput: { backgroundColor: '#f1f5f9', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, fontSize: 16, borderWidth: 2, borderColor: 'transparent', margin: 16 },
+  modalHandle: { width: 40, height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 8 },
+  modalHeader: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937', textAlign: 'center' },
+  modalSearchContainer: { padding: 16 },
+  modalSearchInput: { backgroundColor: '#f1f5f9', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, fontSize: 16, borderWidth: 2, borderColor: 'transparent' },
   modalList: { maxHeight: 400 },
   modalOption: { paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   modalOptionText: { fontSize: 16, color: '#1f2937' },

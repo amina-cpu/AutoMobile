@@ -1,5 +1,5 @@
-import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,15 +15,14 @@ import {
 } from 'react-native';
 import { supabase } from '../src/config/supabase';
 
-const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
-const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
-
 export default function ProfileScreen() {
-  const navigation = useNavigation();
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
+const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
@@ -40,42 +39,31 @@ export default function ProfileScreen() {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      console.log('👤 Loading profile...');
+      console.log('👤 Chargement du profil...');
 
       const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
       
       if (userError) {
-        console.error('❌ Auth error:', userError);
+        console.error('❌ Erreur d\'authentification:', userError);
         setLoading(false);
         return;
       }
 
       if (!authUser) {
-        console.log('⚠️ Not logged in');
+        console.log('⚠️ Non connecté');
         setLoading(false);
         return;
       }
 
       setUser(authUser);
-      console.log('✅ Auth user:', authUser.email);
+      console.log('✅ Utilisateur authentifié:', authUser.email);
 
-      // Get session token
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        console.error('❌ No session found');
-        Alert.alert('Error', 'Session expired. Please log in again.');
-        setLoading(false);
-        return;
-      }
-
-      console.log('📥 Fetching profile from database...');
+      console.log('📥 Récupération du profil depuis la base de données...');
       const response = await fetch(
         `${SUPABASE_URL}/rest/v1/users?select=*&id=eq.${authUser.id}`,
         {
           headers: {
             'apikey': API_KEY,
-            'Authorization': `Bearer ${session.access_token}`,
             'Content-Type': 'application/json'
           }
         }
@@ -83,15 +71,15 @@ export default function ProfileScreen() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Fetch error:', response.status, errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.error('❌ Erreur de récupération:', response.status, errorText);
+        throw new Error(`Erreur HTTP! statut: ${response.status}`);
       }
 
       const profileData = await response.json();
-      console.log('📊 Profile response:', profileData);
+      console.log('📊 Réponse du profil:', profileData);
 
       if (profileData && Array.isArray(profileData) && profileData.length > 0) {
-        console.log('✅ Profile found');
+        console.log('✅ Profil trouvé');
         const prof = profileData[0];
         setProfile(prof);
         setFormData({
@@ -102,7 +90,7 @@ export default function ProfileScreen() {
           email: authUser.email || '',
         });
       } else {
-        console.log('⚠️ Profile not found in database');
+        console.log('⚠️ Profil non trouvé dans la base de données');
         setProfile(null);
         setFormData({
           full_name: '',
@@ -115,9 +103,9 @@ export default function ProfileScreen() {
 
       setLoading(false);
     } catch (error) {
-      console.error('❌ Error loading profile:', error);
+      console.error('❌ Erreur du chargement du profil:', error);
       setLoading(false);
-      Alert.alert('Error', 'Failed to load profile: ' + error.message);
+      Alert.alert('Erreur', 'Impossible de charger le profil: ' + error.message);
     }
   };
 
@@ -141,14 +129,14 @@ export default function ProfileScreen() {
         uploadAvatar(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
+      Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
     }
   };
 
   const uploadAvatar = async (imageUri) => {
     try {
       setUpdating(true);
-      console.log('📤 Uploading avatar...');
+      console.log('📤 Téléchargement de l\'avatar...');
 
       const fileName = `avatar-${user.id}-${Date.now()}.jpg`;
       const filePath = `avatars/${user.id}/${fileName}`;
@@ -168,34 +156,31 @@ export default function ProfileScreen() {
         .from('car-images')
         .getPublicUrl(filePath);
 
-      // Get session token
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        throw new Error('No session found');
+      console.log('🔗 URL publique:', publicUrl);
+
+      // Use Supabase client instead of fetch
+      const { data, error } = await supabase
+        .from('users')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id)
+        .select();
+
+      if (error) {
+        console.error('❌ Erreur Supabase:', error);
+        throw new Error(`Impossible de mettre à jour l\'avatar: ${error.message}`);
       }
 
-      const updateResponse = await fetch(
-        `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'apikey': API_KEY,
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ avatar_url: publicUrl })
-        }
-      );
+      console.log('✅ Données de réponse:', data);
 
-      if (!updateResponse.ok) throw new Error('Failed to update avatar');
+      if (data && data.length > 0) {
+        setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
+      }
 
-      setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
-      Alert.alert('Success', 'Avatar updated!');
-      console.log('✅ Avatar uploaded successfully');
+      Alert.alert('Succès', 'Avatar mis à jour!');
+      console.log('✅ Avatar téléchargé avec succès');
     } catch (error) {
-      console.error('❌ Error uploading avatar:', error);
-      Alert.alert('Error', 'Failed to upload avatar');
+      console.error('❌ Erreur du téléchargement de l\'avatar:', error);
+      Alert.alert('Erreur', 'Impossible de télécharger l\'avatar');
     } finally {
       setUpdating(false);
     }
@@ -204,46 +189,63 @@ export default function ProfileScreen() {
   const handleSaveProfile = async () => {
     try {
       setUpdating(true);
-      console.log('💾 Saving profile...');
+      console.log('💾 Sauvegarde du profil...');
 
-      // Get session token
-      const { data: { session } } = await supabase.auth.getSession();
+      if (!user) {
+        throw new Error('Utilisateur non authentifié');
+      }
+
+      // Build update data - only include fields that might have changed
+      const updateData = {};
       
-      if (!session) {
-        throw new Error('No session found');
+      if (formData.full_name !== (profile?.full_name || '')) {
+        updateData.full_name = formData.full_name || null;
+      }
+      if (formData.username !== (profile?.username || '')) {
+        updateData.username = formData.username || null;
+      }
+      if (formData.gender !== (profile?.gender || '')) {
+        updateData.gender = formData.gender || null;
+      }
+      if (formData.phone !== (profile?.phone || '')) {
+        updateData.phone = formData.phone || null;
       }
 
-      const updateResponse = await fetch(
-        `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'apikey': API_KEY,
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            full_name: formData.full_name,
-            username: formData.username,
-            gender: formData.gender,
-            phone: formData.phone,
-          })
-        }
-      );
-
-      if (!updateResponse.ok) {
-        const errorData = await updateResponse.text();
-        console.error('❌ Update failed:', errorData);
-        throw new Error(`Failed to update profile: ${updateResponse.status}`);
+      // If nothing changed, just close the modal
+      if (Object.keys(updateData).length === 0) {
+        console.log('⚠️ Aucun changement détecté');
+        setEditModalVisible(false);
+        setUpdating(false);
+        return;
       }
 
-      setProfile(prev => ({ ...prev, ...formData }));
+      console.log('📝 Données à mettre à jour:', updateData);
+
+      // Use Supabase client with RLS
+      const { data, error } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq('id', user.id)
+        .select();
+
+      if (error) {
+        console.error('❌ Erreur Supabase:', error);
+        throw new Error(`Erreur de mise à jour: ${error.message}`);
+      }
+
+      console.log('✅ Données de réponse:', data);
+
+      // Update local profile with response data
+      if (data && data.length > 0) {
+        setProfile(prev => ({ ...prev, ...data[0] }));
+      }
+
       setEditModalVisible(false);
-      Alert.alert('Success', 'Profile updated!');
-      console.log('✅ Profile saved successfully');
+      Alert.alert('Succès', 'Profil mis à jour!');
+      console.log('✅ Profil sauvegardé avec succès');
     } catch (error) {
-      console.error('❌ Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile: ' + error.message);
+      console.error('❌ Erreur de mise à jour du profil:', error);
+      Alert.alert('Erreur', 'Impossible de mettre à jour le profil: ' + error.message);
     } finally {
       setUpdating(false);
     }
@@ -251,18 +253,18 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
+      'Déconnexion',
+      'Êtes-vous sûr de vouloir vous déconnecter?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Annuler', style: 'cancel' },
         {
-          text: 'Sign Out',
+          text: 'Déconnexion',
           style: 'destructive',
           onPress: async () => {
             try {
               await supabase.auth.signOut();
             } catch (error) {
-              Alert.alert('Error', error.message);
+              Alert.alert('Erreur', error.message);
             }
           },
         },
@@ -274,7 +276,7 @@ export default function ProfileScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#1085a8ff" />
-        <Text style={{ marginTop: 12, color: '#666' }}>Loading profile...</Text>
+        <Text style={{ marginTop: 12, color: '#666' }}>Chargement du profil...</Text>
       </View>
     );
   }
@@ -283,11 +285,11 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.backButton}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backIcon}>‹</Text>
           </TouchableOpacity>
           
-          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={styles.headerTitle}>Profil</Text>
           
           <TouchableOpacity style={styles.menuButton}>
             <View style={styles.menuDot} />
@@ -318,7 +320,7 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.profileSection}>
             <Text style={styles.userName}>
-              {formData.full_name || formData.username || 'USER'}
+              {formData.full_name || formData.username || 'UTILISATEUR'}
             </Text>
             <Text style={styles.userEmail}>
               {user?.email || 'email@example.com'}
@@ -336,24 +338,26 @@ export default function ProfileScreen() {
                   <View style={{position: 'absolute', top: 0, right: 0, width: 8, height: 8, backgroundColor: '#fff', transform: [{rotate: '45deg'}]}} />
                 </View>
               </View>
-              <Text style={styles.menuText}>Edit Profile</Text>
+              <Text style={styles.menuText}>Modifier le profil</Text>
               <Text style={styles.menuArrow}>›</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.menuItem}
-              onPress={() => navigation.navigate('MyListings')}
-            >
-              <View style={styles.menuIconContainer}>
-                <View style={{width: 20, height: 20, alignItems: 'center', justifyContent: 'center'}}>
-                  <View style={{width: 16, height: 14, borderWidth: 2, borderColor: '#fff', borderRadius: 3}} />
-                  <View style={{position: 'absolute', top: 4, width: 10, height: 2, backgroundColor: '#fff'}} />
-                  <View style={{position: 'absolute', top: 8, width: 10, height: 2, backgroundColor: '#fff'}} />
-                </View>
-              </View>
-              <Text style={styles.menuText}>My Listings</Text>
-              <Text style={styles.menuArrow}>›</Text>
-            </TouchableOpacity>
+           <TouchableOpacity 
+  style={styles.menuItem}
+  onPress={() => router.push('/(tabs)/my-listings')} // Changed from navigation.navigate
+>
+  <View style={styles.menuIconContainer}>
+    <View style={{width: 20, height: 20, alignItems: 'center', justifyContent: 'center'}}>
+      <View style={{width: 16, height: 14, borderWidth: 2, borderColor: '#fff', borderRadius: 3}} />
+      <View style={{position: 'absolute', top: 4, width: 10, height: 2, backgroundColor: '#fff'}} />
+      <View style={{position: 'absolute', top: 8, width: 10, height: 2, backgroundColor: '#fff'}} />
+    </View>
+  </View>
+  <Text style={styles.menuText}>Mes annonces</Text>
+  <Text style={styles.menuArrow}>›</Text>
+</TouchableOpacity>
+
+
 
             <TouchableOpacity style={styles.menuItem}>
               <View style={styles.menuIconContainer}>
@@ -363,7 +367,7 @@ export default function ProfileScreen() {
                   <View style={{position: 'absolute', top: -2, right: 2, width: 6, height: 6, borderRadius: 3, backgroundColor: '#ef4444'}} />
                 </View>
               </View>
-              <Text style={styles.menuText}>Notification</Text>
+              <Text style={styles.menuText}>Notifications</Text>
               <Text style={styles.menuArrow}>›</Text>
             </TouchableOpacity>
           </View>
@@ -380,7 +384,7 @@ export default function ProfileScreen() {
               <View style={{position: 'absolute', right: 0, top: 4, width: 5, height: 5, borderRightWidth: 2, borderTopWidth: 2, borderColor: '#FFFF', transform: [{rotate: '45deg'}]}} />
             </View>
           </View>
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={styles.signOutText}>Déconnexion</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -393,7 +397,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <Text style={styles.modalTitle}>Modifier le profil</Text>
               <TouchableOpacity
                 style={styles.modalCloseButton}
                 onPress={() => setEditModalVisible(false)}
@@ -407,29 +411,31 @@ export default function ProfileScreen() {
               showsVerticalScrollIndicator={false}
             >
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Name</Text>
+                <Text style={styles.fieldLabel}>Nom</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="Albert Florest"
                   value={formData.full_name}
                   onChangeText={(value) => handleInputChange('full_name', value)}
                   editable={!updating}
+                  placeholderTextColor="#cbd5e1"
                 />
               </View>
 
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Username</Text>
+                <Text style={styles.fieldLabel}>Nom d'utilisateur</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="albertflorest"
                   value={formData.username}
                   onChangeText={(value) => handleInputChange('username', value)}
                   editable={!updating}
+                  placeholderTextColor="#cbd5e1"
                 />
               </View>
 
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Gender</Text>
+                <Text style={styles.fieldLabel}>Genre</Text>
                 <View style={styles.genderOptions}>
                   <TouchableOpacity
                     style={[
@@ -443,7 +449,7 @@ export default function ProfileScreen() {
                       styles.genderOptionText,
                       formData.gender === 'Male' && styles.genderOptionTextSelected
                     ]}>
-                      Male
+                      Homme
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -458,14 +464,14 @@ export default function ProfileScreen() {
                       styles.genderOptionText,
                       formData.gender === 'Female' && styles.genderOptionTextSelected
                     ]}>
-                      Female
+                      Femme
                     </Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Phone Number</Text>
+                <Text style={styles.fieldLabel}>Numéro de téléphone</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="+213 555 0000"
@@ -473,13 +479,14 @@ export default function ProfileScreen() {
                   onChangeText={(value) => handleInputChange('phone', value)}
                   keyboardType="phone-pad"
                   editable={!updating}
+                  placeholderTextColor="#cbd5e1"
                 />
               </View>
 
               <View style={styles.fieldContainer}>
                 <Text style={styles.fieldLabel}>Email</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { color: '#94a3b8' }]}
                   value={formData.email}
                   editable={false}
                 />
@@ -492,7 +499,7 @@ export default function ProfileScreen() {
                 onPress={() => setEditModalVisible(false)}
                 disabled={updating}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
@@ -502,7 +509,7 @@ export default function ProfileScreen() {
                 {updating ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.saveButtonText}>Save</Text>
+                  <Text style={styles.saveButtonText}>Enregistrer</Text>
                 )}
               </TouchableOpacity>
             </View>

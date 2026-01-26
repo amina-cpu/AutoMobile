@@ -8,6 +8,16 @@
     "scheme": "automobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "expo-splash-screen": {
+      "image": "./assets/images/auto.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1085a8ff"
+    },
+    "splash": {
+      "image": "./assets/images/auto.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1085a8ff"
+    },
     "ios": {
       "supportsTablet": true
     },
@@ -18,10 +28,13 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.amina1975.Automobile"
+      "package": "com.amina75.Automobile"
     },
     "web": {
       "output": "static",
@@ -50,7 +63,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "ddd7b19c-0caf-4615-a4e2-46680525f90d"
+        "projectId": "677bf1a3-4eec-4a8c-83b3-eef0f06fc214"
       }
     }
   }

@@ -18,9 +18,6 @@ import { supabase } from '../src/config/supabase';
 
 const { width } = Dimensions.get('window');
 
-const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
-const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
-
 export default function HomeScreen() {
   const navigation = useNavigation();
   const [scaleValue] = React.useState(new Animated.Value(1));
@@ -32,6 +29,21 @@ export default function HomeScreen() {
   const [location, setLocation] = useState('Chargement...');
   const [userName, setUserName] = useState('User');
   const [userImage, setUserImage] = useState(null);
+
+  // Helper function to get image URL - SAME AS PRODUCT DETAIL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    const { data } = supabase.storage
+      .from('car-images')
+      .getPublicUrl(imagePath);
+    
+    return data?.publicUrl || null;
+  };
 
   useEffect(() => {
     getUserLocation();
@@ -72,73 +84,68 @@ export default function HomeScreen() {
         setLocation('Blida');
       }
     } catch (error) {
+      console.error('Erreur de localisation:', error);
       setLocation('Blida, Algérie');
     }
   };
 
   const getUserInfo = async () => {
     try {
-      console.log('🔍 Getting user info...');
+      console.log('🔍 Récupération des infos utilisateur...');
       
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       if (userError) {
-        console.error('❌ Auth error:', userError);
+        console.error('❌ Erreur d\'authentification:', userError);
         return;
       }
 
       if (!user) {
-        console.log('⚠️ No user found');
+        console.log('⚠️ Utilisateur non trouvé');
         return;
       }
 
-      console.log('✅ User authenticated:', user.id);
+      console.log('✅ Utilisateur authentifié:', user.id);
 
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`,
-        {
-          headers: {
-            'apikey': API_KEY,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      if (!response.ok) {
-        console.error('❌ Database fetch failed:', response.status);
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Use Supabase client instead of fetch
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('❌ Erreur de récupération du profil:', error);
+        throw error;
       }
 
-      const userData = await response.json();
-      console.log('📦 User data from DB:', userData);
+      console.log('📦 Données utilisateur de la DB:', data);
       
-      if (userData && userData.length > 0) {
-        const userRecord = userData[0];
-        
-        const displayName = userRecord.full_name || 
-                           userRecord.username || 
-                           userRecord.email?.split('@')[0] || 
+      if (data) {
+        const displayName = data.full_name || 
+                           data.username || 
+                           user.email?.split('@')[0] || 
                            'User';
         
-        console.log('✅ Setting display name:', displayName);
+        console.log('✅ Nom d\'affichage défini:', displayName);
         setUserName(displayName);
         
-        if (userRecord.avatar_url) {
-          console.log('✅ Setting avatar:', userRecord.avatar_url);
-          setUserImage(userRecord.avatar_url);
+        if (data.avatar_url) {
+          console.log('✅ Avatar défini:', data.avatar_url);
+          setUserImage(data.avatar_url);
         }
       } else {
-        console.log('⚠️ No user record in database, using auth metadata');
+        console.log('⚠️ Aucun enregistrement utilisateur en base de données');
         const displayName = user.user_metadata?.full_name || 
                           user.user_metadata?.name || 
                           user.email?.split('@')[0] || 
                           'User';
         
-        console.log('✅ Setting fallback name:', displayName);
+        console.log('✅ Nom par défaut défini:', displayName);
         setUserName(displayName);
       }
     } catch (error) {
-      console.error('❌ Error in getUserInfo:', error);
+      console.error('❌ Erreur dans getUserInfo:', error);
       setUserName('User');
     }
   };
@@ -148,44 +155,52 @@ export default function HomeScreen() {
       setLoading(true);
       setError(null);
 
-      console.log('🚗 Loading cars...');
+      console.log('🚗 Chargement des voitures...');
 
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/cars?select=*,car_images(id,image_url,display_order)&order=created_at.desc&limit=10`,
-        {
-          method: 'GET',
-          headers: {
-            'apikey': API_KEY,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      // Use Supabase client instead of fetch
+      const { data, error } = await supabase
+        .from('cars')
+        .select(`
+          *,
+          car_images(id, image_url, display_order)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-      if (!response.ok) {
-        console.error('❌ API Error:', response.status);
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) {
+        console.error('❌ Erreur API:', error);
+        throw new Error(`Erreur Supabase: ${error.message}`);
       }
 
-      const data = await response.json();
-      console.log('📦 Response type:', typeof data, 'Is Array:', Array.isArray(data), 'Length:', data?.length);
+      console.log('📦 Type de réponse:', typeof data, 'Est un tableau:', Array.isArray(data), 'Longueur:', data?.length);
 
       if (Array.isArray(data) && data.length > 0) {
-        console.log('✅ Loaded', data.length, 'cars');
-        setLatestCars(data);
+        console.log('✅ Chargement de', data.length, 'voitures');
+        
+        // Process images with proper URLs
+        const processedCars = data.map(car => ({
+          ...car,
+          car_images: car.car_images ? car.car_images.map(img => ({
+            ...img,
+            displayUrl: getImageUrl(img.image_url)
+          })) : []
+        }));
+        
+        setLatestCars(processedCars);
         setCurrentCarIndex(0);
         setError(null);
       } else if (!Array.isArray(data)) {
-        console.error('❌ API returned non-array:', data);
+        console.error('❌ L\'API a retourné un non-tableau:', data);
         setError('Erreur: Format de données invalide');
         setLatestCars([]);
       } else {
-        console.log('⚠️ No cars found');
+        console.log('⚠️ Aucune voiture trouvée');
         setError('Aucune voiture disponible');
         setLatestCars([]);
       }
       
     } catch (error) {
-      console.error('❌ Error loading cars:', error);
+      console.error('❌ Erreur de chargement des voitures:', error);
       setError(`Erreur: ${error.message}`);
       setLatestCars([]);
     } finally {
@@ -258,7 +273,7 @@ export default function HomeScreen() {
       item.car_images && 
       Array.isArray(item.car_images) && 
       item.car_images.length > 0 
-        ? item.car_images[0].image_url 
+        ? item.car_images[0].displayUrl
         : null;
 
     return (
@@ -272,7 +287,11 @@ export default function HomeScreen() {
             <View style={styles.carCard}>
               <View style={styles.carImageContainer}>
                 {firstImage ? (
-                  <Image source={{ uri: firstImage }} style={styles.carImage} />
+                  <Image 
+                    source={{ uri: firstImage }} 
+                    style={styles.carImage}
+                    onError={(e) => console.error('Image load error:', e.nativeEvent.error)}
+                  />
                 ) : (
                   <Text style={styles.carImagePlaceholder}>🚗</Text>
                 )}
@@ -282,7 +301,7 @@ export default function HomeScreen() {
                 </View>
 
                 <View style={styles.priceTag}>
-                  <Text style={styles.priceTagText}>{item.price} DA</Text>
+                  <Text style={styles.priceTagText}>{item.price} €</Text>
                 </View>
 
                 <TouchableOpacity 
@@ -473,13 +492,13 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  headerContainer: { backgroundColor: '#1085a8ff', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 30, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  headerContainer: { backgroundColor: '#1085a8ff', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 0, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   locationLabel: { fontSize: 13, color: 'rgba(255, 255, 255, 0.8)', marginBottom: 4 },
   locationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   locationTextRow: { flexDirection: 'row', alignItems: 'center' },
   locationText: { fontSize: 17, fontWeight: '600', color: '#fff' },
   notificationButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.25)', justifyContent: 'center', alignItems: 'center' },
-  greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom:20},
   greetingContainer: { flex: 1 },
   greetingText: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
   notificationIconContainer: { position: 'relative' },
@@ -488,33 +507,9 @@ const styles = StyleSheet.create({
   bellBottom: { width: 20, height: 4, backgroundColor: '#fff', borderBottomLeftRadius: 2, borderBottomRightRadius: 2, marginTop: -1 },
   bellClapper: { width: 4, height: 4, backgroundColor: '#fff', borderRadius: 2, position: 'absolute', bottom: 2, left: 8 },
   notificationDot: { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
-  carCard: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    marginHorizontal: 10,
-    marginBottom: 20,
-    paddingTop: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 0,
-  },
-  carImageContainer: { 
-    position: 'relative', 
-    height: 230, 
-    // marginTop: 5,
-    backgroundColor: '#f9fafb', 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  },
-  carImage: { 
-    // marginTop: 5,
-    width: '100%', 
-    height: '100%', 
-    resizeMode: 'cover' 
-  },
+  carCard: { backgroundColor: '#fff', paddingHorizontal: 10, marginHorizontal: 10, marginBottom: 20, paddingTop: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3, borderWidth: 0 },
+  carImageContainer: { position: 'relative', height: 230, backgroundColor: '#f9fafb', justifyContent: 'center', alignItems: 'center' },
+  carImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   carImagePlaceholder: { fontSize: 72 },
   dealBadge: { position: 'absolute', top: 160, left: 12, backgroundColor: '#1085a8ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
   dealBadgeText: { fontSize: 13, fontWeight: '700', color: '#fff' },
