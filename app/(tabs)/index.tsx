@@ -1,5 +1,6 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,12 +15,15 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useNotifications } from '../hooks/notification';
 import { supabase } from '../src/config/supabase';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const router = useRouter();
+  const { notificationCount } = useNotifications();
   const [scaleValue] = React.useState(new Animated.Value(1));
   const [latestCars, setLatestCars] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +65,7 @@ export default function HomeScreen() {
       let { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
-        setLocation('Blida, Algérie');
+        setLocation('Location');
         return;
       }
 
@@ -81,11 +85,11 @@ export default function HomeScreen() {
         const city = address.city || address.subregion || address.region || 'Algérie';
         setLocation(city);
       } else {
-        setLocation('Blida');
+        setLocation('Location');
       }
     } catch (error) {
       console.error('Erreur de localisation:', error);
-      setLocation('Blida, Algérie');
+      setLocation('Location');
     }
   };
 
@@ -281,7 +285,10 @@ export default function HomeScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <TouchableOpacity 
             style={{ flex: 1 }}
-            onPress={() => navigation.navigate('product-detail', { carId: item.id })}
+            onPress={() => router.push({
+              pathname: '/(tabs)/product-detail',
+              params: { carId: item.id }
+            })}
             activeOpacity={0.95}
           >
             <View style={styles.carCard}>
@@ -371,7 +378,10 @@ export default function HomeScreen() {
           <View style={styles.locationTextRow}>
             <Text style={styles.locationText}> {location} ▼</Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => router.push('/notification')}
+          >
             <View style={styles.notificationIconContainer}>
               <View style={styles.bellIcon}>
                 <View style={styles.bellTop} />
@@ -493,12 +503,20 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   headerContainer: { backgroundColor: '#1085a8ff', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 0, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
-  locationLabel: { fontSize: 13, color: 'rgba(255, 255, 255, 0.8)', marginBottom: 4 },
+  locationLabel: { fontSize: 13, color: 'rgba(255, 255, 255, 0.8)' },
   locationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   locationTextRow: { flexDirection: 'row', alignItems: 'center' },
   locationText: { fontSize: 17, fontWeight: '600', color: '#fff' },
-  notificationButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.25)', justifyContent: 'center', alignItems: 'center' },
-  greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom:20},
+  notificationButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginTop: 20 
+  },
+  greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom: 20 },
   greetingContainer: { flex: 1 },
   greetingText: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
   notificationIconContainer: { position: 'relative' },
@@ -506,7 +524,15 @@ const styles = StyleSheet.create({
   bellTop: { width: 16, height: 16, borderWidth: 2, borderColor: '#fff', borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomWidth: 0, marginLeft: 2 },
   bellBottom: { width: 20, height: 4, backgroundColor: '#fff', borderBottomLeftRadius: 2, borderBottomRightRadius: 2, marginTop: -1 },
   bellClapper: { width: 4, height: 4, backgroundColor: '#fff', borderRadius: 2, position: 'absolute', bottom: 2, left: 8 },
-  notificationDot: { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444' },
+  notificationDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ef4444',
+  },
   carCard: { backgroundColor: '#fff', paddingHorizontal: 10, marginHorizontal: 10, marginBottom: 20, paddingTop: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3, borderWidth: 0 },
   carImageContainer: { position: 'relative', height: 230, backgroundColor: '#f9fafb', justifyContent: 'center', alignItems: 'center' },
   carImage: { width: '100%', height: '100%', resizeMode: 'cover' },

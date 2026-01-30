@@ -2,9 +2,11 @@ import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Dimensions, FlatList, Image, Linking,
-  ScrollView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View
+  ActivityIndicator, Dimensions, FlatList, Image, Linking,
+  Modal, ScrollView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View
 } from 'react-native';
+import CustomAlert from '../components/CustomAlert';
+import { useAlert } from '../hooks/useAlert';
 import { supabase } from '../src/config/supabase';
 
 const { width } = Dimensions.get('window');
@@ -14,6 +16,7 @@ const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
 
 export default function ProductDetailScreen() {
   const route = useRoute();
+  const { alertConfig, showSuccess, showError, showWarning, dismiss } = useAlert();
   const [car, setCar] = useState(null);
   const [seller, setSeller] = useState(null);
   const [sellerStats, setSellerStats] = useState(null);
@@ -24,21 +27,20 @@ export default function ProductDetailScreen() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState(null);
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(4);
+  const [likeCount, setLikeCount] = useState(0);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
   // Helper function to get image URL
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     
-    // If it's already a full URL, return it
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
     
-    // Otherwise, generate public URL from Supabase
     const { data } = supabase.storage
       .from('car-images')
       .getPublicUrl(imagePath);
@@ -50,28 +52,38 @@ export default function ProductDetailScreen() {
     useCallback(() => {
       const carId = route.params?.carId;
       if (carId) {
-        getCurrentUser();
-        loadCarDetails(carId);
+        loadCarDetailsWithUser(carId);
       } else {
         setError('Car ID not provided');
+        showError('Erreur', 'ID de voiture manquant');
         setLoading(false);
       }
     }, [route.params?.carId])
   );
 
-  const getCurrentUser = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-    } catch (err) {
-      console.log('Could not fetch current user:', err);
-    }
-  };
-
-  const loadCarDetails = async (carId) => {
+  const loadCarDetailsWithUser = async (carId) => {
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('👤 Fetching current user...');
+      let authUser = null;
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.log('⚠️ Could not fetch user:', userError);
+        } else if (user) {
+          authUser = user;
+          setCurrentUser(user);
+          console.log('✅ Current user authenticated:', user.id);
+        } else {
+          console.log('⚠️ No authenticated user');
+          setCurrentUser(null);
+        }
+      } catch (err) {
+        console.log('❌ Error getting user:', err);
+      }
 
       console.log('🚗 Fetching car details for ID:', carId);
       const carResponse = await fetch(
@@ -88,6 +100,7 @@ export default function ProductDetailScreen() {
       
       if (!carData || carData.length === 0) {
         setError('Car not found');
+        showError('Erreur', 'Voiture non trouvée');
         setLoading(false);
         return;
       }
@@ -95,12 +108,19 @@ export default function ProductDetailScreen() {
       const carInfo = carData[0];
       setCar(carInfo);
       console.log(`✅ Car found: ${carInfo.brand} ${carInfo.model}`);
+      console.log('🔍 Car seller_id:', carInfo.seller_id);
+      console.log('🔍 Current user id:', authUser?.id);
 
-      // Check if current user is owner
-      if (currentUser && carInfo.seller_id === currentUser.id) {
+      if (authUser && carInfo.seller_id === authUser.id) {
         setIsOwner(true);
-        console.log('✅ User is owner of this car');
+        console.log('✅✅✅ USER IS OWNER - SHOWING EDIT/DELETE BUTTONS');
+      } else {
+        setIsOwner(false);
+        console.log('❌❌❌ USER IS NOT OWNER - HIDING EDIT/DELETE BUTTONS');
       }
+
+      // Load favorites count and check if current user liked this car
+      await loadLikesData(carId, authUser?.id);
 
       // Fetch seller info
       if (carInfo.seller_id) {
@@ -121,7 +141,6 @@ export default function ProductDetailScreen() {
             setSeller(sellerData[0]);
             console.log(`✅ Seller found: ${sellerData[0].full_name || sellerData[0].email}`);
 
-            // Fetch seller's other cars
             const sellerCarsResponse = await fetch(
               `${SUPABASE_URL}/rest/v1/cars?select=id&seller_id=eq.${carInfo.seller_id}`,
               {
@@ -207,8 +226,118 @@ export default function ProductDetailScreen() {
     } catch (err) {
       console.error('❌ Error loading car details:', err);
       setError(err.message || 'Failed to load car details');
+      showError('Erreur', 'Impossible de charger les détails du véhicule');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadLikesData = async (carId, userId) => {
+    try {
+      console.log('❤️ Loading likes data for car:', carId);
+
+      // Get total likes count for this car
+      const countResponse = await fetch(
+        `${SUPABASE_URL}/rest/v1/favorites?car_id=eq.${carId}&select=id`,
+        {
+          headers: {
+            'apikey': API_KEY,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const countData = await countResponse.json();
+      const totalLikes = Array.isArray(countData) ? countData.length : 0;
+      setLikeCount(totalLikes);
+      console.log(`✅ Total likes: ${totalLikes}`);
+
+      // Check if current user has liked this car
+      if (userId) {
+        const userLikeResponse = await fetch(
+          `${SUPABASE_URL}/rest/v1/favorites?user_id=eq.${userId}&car_id=eq.${carId}`,
+          {
+            headers: {
+              'apikey': API_KEY,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        const userLikeData = await userLikeResponse.json();
+        const hasLiked = Array.isArray(userLikeData) && userLikeData.length > 0;
+        setLiked(hasLiked);
+        console.log(`✅ User has liked: ${hasLiked}`);
+      } else {
+        setLiked(false);
+      }
+    } catch (err) {
+      console.error('❌ Error loading likes data:', err);
+    }
+  };
+
+  const handleLikeToggle = async () => {
+    if (!currentUser) {
+      showWarning('Connexion requise', 'Veuillez vous connecter pour ajouter aux favoris');
+      return;
+    }
+
+    if (!car) return;
+
+    try {
+      console.log('❤️ Toggling like for car:', car.id);
+
+      if (liked) {
+        // Remove like
+        const response = await fetch(
+          `${SUPABASE_URL}/rest/v1/favorites?user_id=eq.${currentUser.id}&car_id=eq.${car.id}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'apikey': API_KEY,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to remove like');
+        }
+
+        setLiked(false);
+        setLikeCount(prev => Math.max(0, prev - 1));
+        console.log('✅ Like removed');
+      } else {
+        // Add like
+        const response = await fetch(
+          `${SUPABASE_URL}/rest/v1/favorites`,
+          {
+            method: 'POST',
+            headers: {
+              'apikey': API_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({
+              user_id: currentUser.id,
+              car_id: car.id
+            })
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Failed to add like:', errorText);
+          throw new Error('Failed to add like');
+        }
+
+        setLiked(true);
+        setLikeCount(prev => prev + 1);
+        console.log('✅ Like added');
+      }
+    } catch (err) {
+      console.error('❌ Error toggling like:', err);
+      showError('Erreur', 'Impossible de mettre à jour les favoris');
     }
   };
 
@@ -223,18 +352,12 @@ export default function ProductDetailScreen() {
   };
 
   const handleDeleteProduct = () => {
-    Alert.alert(
-      'Supprimer l\'annonce',
-      'Êtes-vous sûr de vouloir supprimer cette annonce ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: deleteProduct
-        }
-      ]
-    );
+    setDeleteModalVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    setDeleteModalVisible(false);
+    await deleteProduct();
   };
 
   const deleteProduct = async () => {
@@ -242,7 +365,6 @@ export default function ProductDetailScreen() {
       setDeleting(true);
       console.log('🗑️ Deleting car and images...');
 
-      // Delete car images first
       if (carImages.length > 0) {
         console.log('📸 Deleting car images...');
         for (const img of carImages) {
@@ -264,7 +386,6 @@ export default function ProductDetailScreen() {
         }
       }
 
-      // Delete car
       console.log('🚗 Deleting car...');
       const deleteResponse = await fetch(
         `${SUPABASE_URL}/rest/v1/cars?id=eq.${car.id}`,
@@ -282,15 +403,14 @@ export default function ProductDetailScreen() {
       }
 
       console.log('✅ Car deleted successfully');
-      Alert.alert('Succès', 'Annonce supprimée avec succès', [
-        {
-          text: 'OK',
-          onPress: () => router.back()
-        }
-      ]);
+      showSuccess('Supprimée', 'Annonce supprimée avec succès');
+      
+      setTimeout(() => {
+        router.back();
+      }, 2000);
     } catch (err) {
       console.error('❌ Delete error:', err);
-      Alert.alert('Erreur', 'Impossible de supprimer l\'annonce');
+      showError('Erreur', 'Impossible de supprimer l\'annonce');
     } finally {
       setDeleting(false);
     }
@@ -300,19 +420,35 @@ export default function ProductDetailScreen() {
   
   const handlePhonePress = () => {
     if (seller?.phone) {
-      Alert.alert('Numéro', seller.phone, [
-        { text: 'Appeler', onPress: () => Linking.openURL(`tel:${seller.phone}`) },
-        { text: 'Copier', onPress: () => console.log('copy') },
-        { text: 'Annuler', style: 'cancel' }
-      ]);
+      Linking.openURL(`tel:${seller.phone}`);
     }
   };
 
   const handleShare = async () => {
     try {
       await Share.share({ message: `${car.brand} ${car.model} - ${car.price}€` });
+      showSuccess('Partagée', 'Annonce partagée avec succès');
     } catch (error) {
       console.error('Error:', error);
+      showError('Erreur', 'Impossible de partager l\'annonce');
+    }
+  };
+
+  const handleSellerProfileClick = () => {
+    if (seller?.id) {
+      console.log('👤 Navigating to seller profile:', seller.id);
+      
+      // If the seller is the current user, go to their own profile tab
+      if (isOwner && currentUser?.id === seller.id) {
+        console.log('✅ Navigating to own profile tab');
+        router.push('/(tabs)/profile');
+      } else {
+        console.log('✅ Navigating to seller profile screen');
+        router.push({
+          pathname: '/sellerProfile',
+          params: { sellerId: seller.id }
+        });
+      }
     }
   };
 
@@ -345,22 +481,19 @@ export default function ProductDetailScreen() {
       
       <View style={styles.themeHeader}>
         <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
-          <Text style={styles.headerBackText}>←</Text>
+          <Text style={styles.headerBackText}>‹</Text>
         </TouchableOpacity>
         
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
+          {/* <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
             <Text style={{ fontSize: 20 }}>↗</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity 
             style={styles.headerButton}
-            onPress={() => {
-              setLiked(!liked);
-              setLikeCount(liked ? likeCount - 1 : likeCount + 1);
-            }}
+            onPress={handleLikeToggle}
           >
-            <Text style={styles.likeCount}>{likeCount}</Text>
-            <Text style={{ fontSize: 16 }}>❤️</Text>
+            {/* <Text style={styles.likeCount}>{likeCount}</Text> */}
+            <Text style={{ fontSize: 16 }}>{liked ? '❤️' : '🤍'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -500,7 +633,11 @@ export default function ProductDetailScreen() {
         )}
 
         {seller && (
-          <View style={styles.sellerSection}>
+          <TouchableOpacity 
+            style={styles.sellerSection}
+            onPress={handleSellerProfileClick}
+            activeOpacity={0.7}
+          >
             <Text style={styles.sectionTitle}>Vendu par</Text>
             <View style={{ height: 12 }} />
             <View style={styles.sellerCard}>
@@ -524,8 +661,11 @@ export default function ProductDetailScreen() {
                   <Text style={styles.sellerMeta}>📧 {seller.email}</Text>
                 </View>
               </View>
+              <View style={styles.profileArrow}>
+                <Text style={styles.arrowText}>›</Text>
+              </View>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
 
         <View style={styles.infoSection}>
@@ -578,16 +718,71 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteTitle}>Supprimer l'annonce</Text>
+            <Text style={styles.deleteMessage}>
+              Êtes-vous sûr de vouloir supprimer cette annonce ? Cette action est irréversible.
+            </Text>
+
+            <View style={styles.deleteButtonContainer}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.cancelDeleteButton]}
+                onPress={() => setDeleteModalVisible(false)}
+              >
+                <Text style={styles.cancelDeleteText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.confirmDeleteButton]}
+                onPress={confirmDelete}
+              >
+                <Text style={styles.confirmDeleteText}>Supprimer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onDismiss={dismiss}
+        duration={alertConfig.duration}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5'},
+  container: { flex: 1, backgroundColor: '#f5f5f5'},headerBackButton: { 
+  width: 40, 
+  height: 40, 
+  borderRadius: 18,              // ← Changed from 20
+  backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+  justifyContent: 'center', 
+  alignItems: 'center' 
+},
+
+headerBackText: { 
+  fontSize: 28,                  // ← Changed from 20
+  color: '#fff', 
+  fontWeight: 'bold',
+  marginBottom: 10               // ← Add this line
+},
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
   errorText: { fontSize: 18, color: '#ef4444', textAlign: 'center', marginBottom: 20 },
-  themeHeader: { backgroundColor: '#1085a8ff', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 20 },
+  themeHeader: { backgroundColor: '#1085a8ff', paddingHorizontal: 20,  paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 50 },
   headerBackButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
   headerBackText: { fontSize: 20, color: '#fff', fontWeight: 'bold' },
   headerRight: { flexDirection: 'row', gap: 8 },
@@ -635,6 +830,8 @@ const styles = StyleSheet.create({
   star: { fontSize: 12, color: '#f59e0b' },
   ratingText: { fontSize: 11, color: '#6b7280' },
   sellerMeta: { fontSize: 10, color: '#6b7280', lineHeight: 14 },
+  profileArrow: { justifyContent: 'center', alignItems: 'center', paddingLeft: 12 },
+  arrowText: { fontSize: 16, color: '#9ca3af', fontWeight: 'bold' },
   infoSection: { backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginBottom: 12 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   infoRowLast: { borderBottomWidth: 0 },
@@ -642,10 +839,21 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 12, color: '#1f2937', fontWeight: '700' },
   descriptionSection: { backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginBottom: 12 },
   descriptionText: { fontSize: 13, color: '#4b5563', lineHeight: 20 },
-
   bottomButtons: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 5 },
   phoneButton: { flex: 1, paddingVertical: 14, borderWidth: 2, borderColor: '#1085a8ff', borderRadius: 8, alignItems: 'center' },
   phoneButtonText: { fontSize: 14, color: '#1085a8ff', fontWeight: '700' },
   messageButton: { flex: 1, paddingVertical: 14, backgroundColor: '#1085a8ff', borderRadius: 8, alignItems: 'center' },
   messageButtonText: { fontSize: 14, color: '#ffffff', fontWeight: '700' },
+  
+  // Delete Modal Styles (matching profile disconnect modal)
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center' },
+  deleteModalContent: { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '80%', alignItems: 'center' },
+  deleteTitle: { fontSize: 18, fontWeight: '700', color: '#1f2937', marginBottom: 8, textAlign: 'center' },
+  deleteMessage: { fontSize: 14, color: '#64748b', textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  deleteButtonContainer: { flexDirection: 'row', gap: 12, width: '100%' },
+  deleteModalButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cancelDeleteButton: { backgroundColor: '#f1f5f9' },
+  confirmDeleteButton: { backgroundColor: '#ef4444' },
+  cancelDeleteText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  confirmDeleteText: { fontSize: 14, fontWeight: '600', color: '#fff' },
 });

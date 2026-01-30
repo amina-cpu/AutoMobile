@@ -13,17 +13,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import CustomAlert from '../components/CustomAlert';
+import { useAlert } from '../hooks/useAlert';
 import { supabase } from '../src/config/supabase';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { alertConfig, showSuccess, dismiss } = useAlert();
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
-const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [disconnectModalVisible, setDisconnectModalVisible] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
     username: '',
@@ -41,6 +43,7 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
       setLoading(true);
       console.log('👤 Chargement du profil...');
 
+      // Get authenticated user
       const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
       
       if (userError) {
@@ -59,34 +62,27 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
       console.log('✅ Utilisateur authentifié:', authUser.email);
 
       console.log('📥 Récupération du profil depuis la base de données...');
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/users?select=*&id=eq.${authUser.id}`,
-        {
-          headers: {
-            'apikey': API_KEY,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const { data: profileData, error: fetchError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erreur de récupération:', response.status, errorText);
-        throw new Error(`Erreur HTTP! statut: ${response.status}`);
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('❌ Erreur de récupération:', fetchError);
+        throw fetchError;
       }
 
-      const profileData = await response.json();
       console.log('📊 Réponse du profil:', profileData);
 
-      if (profileData && Array.isArray(profileData) && profileData.length > 0) {
+      if (profileData) {
         console.log('✅ Profil trouvé');
-        const prof = profileData[0];
-        setProfile(prof);
+        setProfile(profileData);
         setFormData({
-          full_name: prof.full_name || '',
-          username: prof.username || authUser.email?.split('@')[0] || '',
-          gender: prof.gender || '',
-          phone: prof.phone || '',
+          full_name: profileData.full_name || '',
+          username: profileData.username || authUser.email?.split('@')[0] || '',
+          gender: profileData.gender || '',
+          phone: profileData.phone || '',
           email: authUser.email || '',
         });
       } else {
@@ -158,7 +154,6 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 
       console.log('🔗 URL publique:', publicUrl);
 
-      // Use Supabase client instead of fetch
       const { data, error } = await supabase
         .from('users')
         .update({ avatar_url: publicUrl })
@@ -176,7 +171,7 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
         setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
       }
 
-      Alert.alert('Succès', 'Avatar mis à jour!');
+      showSuccess('Avatar mis à jour', 'Votre avatar a été changé avec succès');
       console.log('✅ Avatar téléchargé avec succès');
     } catch (error) {
       console.error('❌ Erreur du téléchargement de l\'avatar:', error);
@@ -195,7 +190,6 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
         throw new Error('Utilisateur non authentifié');
       }
 
-      // Build update data - only include fields that might have changed
       const updateData = {};
       
       if (formData.full_name !== (profile?.full_name || '')) {
@@ -211,7 +205,6 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
         updateData.phone = formData.phone || null;
       }
 
-      // If nothing changed, just close the modal
       if (Object.keys(updateData).length === 0) {
         console.log('⚠️ Aucun changement détecté');
         setEditModalVisible(false);
@@ -221,7 +214,6 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 
       console.log('📝 Données à mettre à jour:', updateData);
 
-      // Use Supabase client with RLS
       const { data, error } = await supabase
         .from('users')
         .update(updateData)
@@ -235,13 +227,12 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 
       console.log('✅ Données de réponse:', data);
 
-      // Update local profile with response data
       if (data && data.length > 0) {
         setProfile(prev => ({ ...prev, ...data[0] }));
       }
 
       setEditModalVisible(false);
-      Alert.alert('Succès', 'Profil mis à jour!');
+      showSuccess('Profil mis à jour', 'Vos modifications ont été sauvegardées');
       console.log('✅ Profil sauvegardé avec succès');
     } catch (error) {
       console.error('❌ Erreur de mise à jour du profil:', error);
@@ -252,24 +243,17 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
   };
 
   const handleSignOut = async () => {
-    Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Déconnexion',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await supabase.auth.signOut();
-            } catch (error) {
-              Alert.alert('Erreur', error.message);
-            }
-          },
-        },
-      ]
-    );
+    setDisconnectModalVisible(true);
+  };
+
+  const confirmDisconnect = async () => {
+    try {
+      setDisconnectModalVisible(false);
+      await supabase.auth.signOut();
+      showSuccess('Déconnecté', 'Vous avez été déconnecté avec succès');
+    } catch (error) {
+      Alert.alert('Erreur', error.message);
+    }
   };
 
   if (loading) {
@@ -285,7 +269,7 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backIcon}>‹</Text>
           </TouchableOpacity>
           
@@ -343,31 +327,36 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
             </TouchableOpacity>
 
            <TouchableOpacity 
-  style={styles.menuItem}
-  onPress={() => router.push('/(tabs)/my-listings')} // Changed from navigation.navigate
->
-  <View style={styles.menuIconContainer}>
-    <View style={{width: 20, height: 20, alignItems: 'center', justifyContent: 'center'}}>
-      <View style={{width: 16, height: 14, borderWidth: 2, borderColor: '#fff', borderRadius: 3}} />
-      <View style={{position: 'absolute', top: 4, width: 10, height: 2, backgroundColor: '#fff'}} />
-      <View style={{position: 'absolute', top: 8, width: 10, height: 2, backgroundColor: '#fff'}} />
-    </View>
-  </View>
-  <Text style={styles.menuText}>Mes annonces</Text>
-  <Text style={styles.menuArrow}>›</Text>
-</TouchableOpacity>
+             style={styles.menuItem}
+             onPress={() => router.push('/(tabs)/my-listings')}
+           >
+             <View style={styles.menuIconContainer}>
+               <View style={{width: 20, height: 20, alignItems: 'center', justifyContent: 'center'}}>
+                 <View style={{width: 16, height: 14, borderWidth: 2, borderColor: '#fff', borderRadius: 3}} />
+                 <View style={{position: 'absolute', top: 4, width: 10, height: 2, backgroundColor: '#fff'}} />
+                 <View style={{position: 'absolute', top: 8, width: 10, height: 2, backgroundColor: '#fff'}} />
+               </View>
+             </View>
+             <Text style={styles.menuText}>Mes annonces</Text>
+             <Text style={styles.menuArrow}>›</Text>
+           </TouchableOpacity>
 
-
-
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => router.push('/settings')}
+            >
               <View style={styles.menuIconContainer}>
-                <View style={{width: 20, height: 20}}>
-                  <View style={{width: 14, height: 12, borderWidth: 2, borderColor: '#fff', borderTopLeftRadius: 7, borderTopRightRadius: 7, borderBottomWidth: 0, alignSelf: 'center'}} />
-                  <View style={{width: 18, height: 4, backgroundColor: '#fff', borderBottomLeftRadius: 2, borderBottomRightRadius: 2, marginTop: -1, alignSelf: 'center'}} />
-                  <View style={{position: 'absolute', top: -2, right: 2, width: 6, height: 6, borderRadius: 3, backgroundColor: '#ef4444'}} />
+                <View style={{width: 20, height: 20, alignItems: 'center', justifyContent: 'center'}}>
+                  {/* Settings gear icon */}
+                  <View style={{position: 'absolute', width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: '#fff'}} />
+                  <View style={{position: 'absolute', width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff'}} />
+                  <View style={{position: 'absolute', top: -2, width: 2, height: 6, backgroundColor: '#fff'}} />
+                  <View style={{position: 'absolute', bottom: -2, width: 2, height: 6, backgroundColor: '#fff'}} />
+                  <View style={{position: 'absolute', left: -2, width: 6, height: 2, backgroundColor: '#fff'}} />
+                  <View style={{position: 'absolute', right: -2, width: 6, height: 2, backgroundColor: '#fff'}} />
                 </View>
               </View>
-              <Text style={styles.menuText}>Notifications</Text>
+              <Text style={styles.menuText}>Paramètres</Text>
               <Text style={styles.menuArrow}>›</Text>
             </TouchableOpacity>
           </View>
@@ -516,6 +505,46 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={disconnectModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDisconnectModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.disconnectModalContent}>
+            <Text style={styles.disconnectTitle}>Déconnexion</Text>
+            <Text style={styles.disconnectMessage}>
+              Êtes-vous sûr de vouloir vous déconnecter?
+            </Text>
+
+            <View style={styles.disconnectButtonContainer}>
+              <TouchableOpacity
+                style={[styles.disconnectButton, styles.cancelDisconnectButton]}
+                onPress={() => setDisconnectModalVisible(false)}
+              >
+                <Text style={styles.cancelDisconnectText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.disconnectButton, styles.confirmDisconnectButton]}
+                onPress={confirmDisconnect}
+              >
+                <Text style={styles.confirmDisconnectText}>Déconnexion</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onDismiss={dismiss}
+        duration={alertConfig.duration}
+      />
     </View>
   );
 }
@@ -526,7 +555,7 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   backButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
   backIcon: { fontSize: 20, color: '#fff' },
-  headerTitle: { fontSize: 18, fontWeight: '600', color: '#fff' },
+  headerTitle: { fontSize: 24, fontWeight: '600', color: '#fff' },
   menuButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
   menuDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#fff', marginVertical: 2 },
   content: { flex: 1 },
@@ -570,4 +599,13 @@ const styles = StyleSheet.create({
   genderOptionSelected: { borderColor: '#1085a8ff', backgroundColor: '#e0f2fe' },
   genderOptionText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
   genderOptionTextSelected: { color: '#1085a8ff' },
+  disconnectModalContent: { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '80%', alignItems: 'center' },
+  disconnectTitle: { fontSize: 18, fontWeight: '700', color: '#1f2937', marginBottom: 8, textAlign: 'center' },
+  disconnectMessage: { fontSize: 14, color: '#64748b', textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  disconnectButtonContainer: { flexDirection: 'row', gap: 12, width: '100%' },
+  disconnectButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cancelDisconnectButton: { backgroundColor: '#f1f5f9' },
+  confirmDisconnectButton: { backgroundColor: '#1085a8ff' },
+  cancelDisconnectText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  confirmDisconnectText: { fontSize: 14, fontWeight: '600', color: '#fff' },
 });

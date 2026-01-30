@@ -3,7 +3,6 @@ import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   KeyboardAvoidingView,
   Platform,
@@ -13,7 +12,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { supabase } from '../src/config/supabase';
 
@@ -34,8 +33,11 @@ export default function AuthScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
+    console.log('🔗 [AuthScreen] Redirect URI:', redirectUri);
+    console.log('📱 [AuthScreen] Platform:', Platform.OS);
     checkUser();
   }, []);
 
@@ -43,16 +45,16 @@ export default function AuthScreen() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        console.log('✅ Déjà connecté en tant que:', user.email);
+        console.log('✅ [AuthScreen] Déjà connecté en tant que:', user.email);
       }
     } catch (error) {
-      console.log('⚠️ Non connecté');
+      console.log('⚠️ [AuthScreen] Non connecté');
     }
   };
 
   const createUserProfile = async (userId, userEmail, userPhone = null) => {
     try {
-      console.log('👤 Création du profil utilisateur pour:', userId);
+      console.log('👤 [AuthScreen] Création du profil utilisateur pour:', userId);
       
       const profileData = {
         id: userId,
@@ -60,34 +62,33 @@ export default function AuthScreen() {
         phone: userPhone || null,
         full_name: null,
         username: userEmail?.split('@')[0] || 'user',
-        account_type: 'buyer',
+        account_type: null,
         avatar_url: null
       };
 
-      console.log('📤 Envoi des données du profil:', profileData);
+      console.log('📤 [AuthScreen] Envoi des données du profil:', profileData);
       
-      // Use Supabase client instead of fetch
       const { data, error } = await supabase
         .from('users')
         .insert([profileData])
-        .select();
+        .select()
+        .maybeSingle();
 
       if (error) {
-        console.error('❌ Erreur Supabase:', error);
+        console.error('❌ [AuthScreen] Erreur Supabase lors de l\'insertion:', error);
         
-        // If user already exists (unique constraint), that's ok
         if (error.code === '23505') {
-          console.log('✅ Le profil existe déjà');
+          console.log('✅ [AuthScreen] Le profil existe déjà (contrainte unique)');
           return { success: true, existed: true };
         }
         
         throw new Error(`Impossible de créer le profil: ${error.message}`);
       }
 
-      console.log('✅ Profil utilisateur créé:', data);
+      console.log('✅ [AuthScreen] Profil utilisateur créé (incomplete):', data);
       return { success: true, data };
     } catch (error) {
-      console.error('❌ Erreur de création du profil:', error);
+      console.error('❌ [AuthScreen] Erreur de création du profil:', error);
       throw error;
     }
   };
@@ -112,19 +113,30 @@ export default function AuthScreen() {
       setLoading(true);
       setError(null);
 
-      console.log('📝 Démarrage de l\'inscription...');
+      console.log('📝 [AuthScreen] Démarrage de l\'inscription avec email...');
 
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: redirectUri,
+        },
       });
 
       if (signUpError) {
-        console.error('❌ Erreur d\'inscription:', signUpError);
+        console.error('❌ [AuthScreen] Erreur d\'inscription:', signUpError);
+        
+        if (signUpError.message?.includes('already registered') || 
+            signUpError.message?.includes('User already registered')) {
+          setError('Ce compte existe déjà. Essayez de vous connecter.');
+          setLoading(false);
+          return;
+        }
+        
         throw signUpError;
       }
 
-      console.log('✅ Utilisateur créé:', authData.user?.id);
+      console.log('✅ [AuthScreen] Utilisateur créé:', authData.user?.id);
 
       if (authData.user) {
         try {
@@ -133,38 +145,29 @@ export default function AuthScreen() {
             email, 
             phone
           );
-        } catch (profileError) {
-          console.error('❌ Création du profil échouée:', profileError);
-          Alert.alert(
-            'Compte créé',
-            'Votre compte a été créé mais il y a eu un problème lors de la configuration de votre profil. Veuillez essayer de vous connecter.',
-            [{ text: 'OK' }]
-          );
+          
+          console.log('🎉 [AuthScreen] Signup complete');
+          
+          if (authData.session) {
+            console.log('✅ [AuthScreen] Logged in immediately');
+          } else {
+            console.log('📧 [AuthScreen] Email confirmation required');
+            setEmailSent(true);
+          }
+          
+          setError(null);
           setEmail('');
           setPassword('');
           setConfirmPassword('');
           setPhone('');
-          setIsSignUp(false);
-          setLoading(false);
-          return;
+        } catch (profileError) {
+          console.error('❌ [AuthScreen] Création du profil échouée:', profileError);
+          setError('Erreur lors de la création du profil');
         }
       }
-
-      Alert.alert(
-        'Succès', 
-        'Compte créé! Vous pouvez maintenant vous connecter.',
-        [{ text: 'OK' }]
-      );
-      
-      setEmail('');
-      setPassword('');
-      setConfirmPassword('');
-      setPhone('');
-      setIsSignUp(false);
     } catch (err) {
-      console.error('❌ Erreur d\'inscription:', err);
+      console.error('❌ [AuthScreen] Erreur d\'inscription:', err);
       setError(err.message || 'Impossible de s\'inscrire');
-      Alert.alert('Erreur', err.message || 'Impossible de s\'inscrire');
     } finally {
       setLoading(false);
     }
@@ -180,7 +183,7 @@ export default function AuthScreen() {
       setLoading(true);
       setError(null);
 
-      console.log('🔑 Connexion...');
+      console.log('🔑 [AuthScreen] Connexion...');
 
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
@@ -188,57 +191,27 @@ export default function AuthScreen() {
       });
 
       if (signInError) {
-        console.error('❌ Erreur de connexion:', signInError);
-        throw signInError;
-      }
-
-      console.log('✅ Connecté:', data.user.id);
-
-      if (data.user) {
-        try {
-          console.log('🔍 Vérification de l\'existence du profil...');
-          
-          const { data: userData, error: fetchError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-
-          if (fetchError && fetchError.code !== 'PGRST116') {
-            throw fetchError;
-          }
-
-          if (!userData) {
-            console.log('⚠️ Profil non trouvé, création...');
-            await createUserProfile(
-              data.user.id, 
-              data.user.email,
-              null
-            );
-          } else {
-            console.log('✅ Le profil existe');
-          }
-        } catch (err) {
-          console.error('❌ Erreur de vérification/création du profil:', err);
-          try {
-            await createUserProfile(
-              data.user.id, 
-              data.user.email,
-              null
-            );
-          } catch (createErr) {
-            console.error('❌ Impossible de créer le profil:', createErr);
-          }
+        console.error('❌ [AuthScreen] Erreur de connexion:', signInError);
+        
+        if (signInError.message?.includes('Invalid login credentials')) {
+          setError('Email ou mot de passe incorrect');
+        } else if (signInError.message?.includes('Email not confirmed')) {
+          setError('Veuillez confirmer votre email avant de vous connecter');
+        } else {
+          setError(signInError.message || 'Impossible de se connecter');
         }
+        setLoading(false);
+        return;
       }
 
-      Alert.alert('Succès', 'Connecté!');
+      console.log('✅ [AuthScreen] Connecté:', data.user.id);
+      console.log('🎉 [AuthScreen] Login complete');
+      
       setEmail('');
       setPassword('');
     } catch (err) {
-      console.error('❌ Erreur de connexion:', err);
+      console.error('❌ [AuthScreen] Erreur de connexion:', err);
       setError(err.message || 'Impossible de se connecter');
-      Alert.alert('Erreur', err.message || 'Impossible de se connecter');
     } finally {
       setLoading(false);
     }
@@ -249,7 +222,8 @@ export default function AuthScreen() {
       setLoading(true);
       setError(null);
 
-      console.log('🔑 Démarrage de la connexion Google...');
+      console.log('🔑 [AuthScreen] Starting Google sign-in...');
+      console.log('🔗 [AuthScreen] Using redirect URI:', redirectUri);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -264,96 +238,230 @@ export default function AuthScreen() {
       });
 
       if (error) {
-        console.error('❌ Erreur OAuth:', error);
-        throw error;
+        console.error('❌ [AuthScreen] OAuth error:', error);
+        setError(`OAuth Error: ${error.message}`);
+        setLoading(false);
+        return;
       }
 
-      if (data?.url) {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUri,
-          { showInRecents: true }
-        );
+      if (!data?.url) {
+        console.error('❌ [AuthScreen] No OAuth URL returned');
+        setError('Google OAuth not configured. Please contact support.');
+        setLoading(false);
+        return;
+      }
 
-        if (result.type === 'success') {
-          const { url } = result;
-          const urlParts = url.split('#')[1] || url.split('?')[1];
+      console.log('🌐 [AuthScreen] OAuth URL received');
+      console.log('🌐 [AuthScreen] Opening browser...');
+      
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectUri,
+        { showInRecents: true }
+      );
 
-          if (!urlParts) {
-            throw new Error('Aucune donnée d\'authentification reçue');
+      console.log('🔙 [AuthScreen] Browser result type:', result.type);
+
+      if (result.type === 'success') {
+        console.log('✅ [AuthScreen] OAuth callback received');
+        
+        const { url } = result;
+        const urlParts = url.split('#')[1] || url.split('?')[1];
+
+        if (!urlParts) {
+          console.error('❌ [AuthScreen] No URL params in return URL');
+          setError('OAuth callback missing parameters');
+          setLoading(false);
+          return;
+        }
+
+        const params = new URLSearchParams(urlParts);
+        console.log('📋 [AuthScreen] Available params:', Array.from(params.keys()));
+        
+        // Check if we got an authorization code (PKCE flow)
+        const code = params.get('code');
+        const error_description = params.get('error_description');
+        const error_code = params.get('error');
+
+        if (error_description || error_code) {
+          console.error('❌ [AuthScreen] OAuth error:', error_description || error_code);
+          setError(`Authentication failed: ${error_description || error_code}`);
+          setLoading(false);
+          return;
+        }
+
+        if (code) {
+          console.log('🔐 [AuthScreen] Got authorization code, exchanging for session...');
+          
+          // Exchange code for session using Supabase
+          const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+
+          if (sessionError) {
+            console.error('❌ [AuthScreen] Code exchange error:', sessionError);
+            setError(`Failed to complete sign-in: ${sessionError.message}`);
+            setLoading(false);
+            return;
           }
 
-          const params = new URLSearchParams(urlParts);
+          if (!sessionData?.session) {
+            console.error('❌ [AuthScreen] No session returned from code exchange');
+            setError('Failed to create session');
+            setLoading(false);
+            return;
+          }
+
+          console.log('✅ [AuthScreen] Session created successfully');
+          const newUser = sessionData.session.user;
+          console.log('✅ [AuthScreen] User authenticated:', newUser.email);
+
+          // Check if profile exists
+          try {
+            const { data: existingProfile, error: checkError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', newUser.id)
+              .maybeSingle();
+
+            if (checkError && checkError.code !== 'PGRST116') {
+              console.error('❌ [AuthScreen] Profile check error:', checkError);
+            }
+
+            if (existingProfile) {
+              console.log('✅ [AuthScreen] Existing profile found - LOGIN complete');
+            } else {
+              console.log('📝 [AuthScreen] New user - creating profile...');
+              await createUserProfile(newUser.id, newUser.email, null);
+              console.log('✅ [AuthScreen] Profile created - SIGNUP complete');
+            }
+          } catch (profileErr) {
+            console.error('❌ [AuthScreen] Profile error:', profileErr);
+            try {
+              await createUserProfile(newUser.id, newUser.email, null);
+            } catch (createErr) {
+              console.error('❌ [AuthScreen] Failed to create profile:', createErr);
+            }
+          }
+
+          console.log('🎉 [AuthScreen] Google authentication complete!');
+          
+        } else {
+          // Fallback: try to get tokens directly (legacy flow)
           const access_token = params.get('access_token');
           const refresh_token = params.get('refresh_token');
 
           if (access_token && refresh_token) {
+            console.log('🔐 [AuthScreen] Got tokens directly, setting session...');
+            
             const { error: sessionError } = await supabase.auth.setSession({
               access_token,
               refresh_token,
             });
 
             if (sessionError) {
-              console.error('❌ Erreur de session:', sessionError);
-              throw sessionError;
+              console.error('❌ [AuthScreen] Session error:', sessionError);
+              setError(`Session Error: ${sessionError.message}`);
+              setLoading(false);
+              return;
             }
 
-            const { data: { user: newUser } } = await supabase.auth.getUser();
+            console.log('✅ [AuthScreen] Session set successfully');
 
-            if (newUser) {
-              console.log('✅ Utilisateur Google authentifié:', newUser.id);
-              
-              try {
-                const { data: userData, error: fetchError } = await supabase
-                  .from('users')
-                  .select('*')
-                  .eq('id', newUser.id)
-                  .single();
+            const { data: { user: newUser }, error: userError } = await supabase.auth.getUser();
 
-                if (fetchError && fetchError.code !== 'PGRST116') {
-                  throw fetchError;
-                }
+            if (userError || !newUser) {
+              console.error('❌ [AuthScreen] User fetch error:', userError);
+              setError('Failed to get user information');
+              setLoading(false);
+              return;
+            }
 
-                if (!userData) {
-                  console.log('📝 Création du profil pour l\'utilisateur Google...');
-                  await createUserProfile(
-                    newUser.id, 
-                    newUser.email,
-                    null
-                  );
-                } else {
-                  console.log('✅ Le profil de l\'utilisateur Google existe déjà');
-                }
-              } catch (err) {
-                console.error('❌ Erreur de vérification du profil:', err);
-                try {
-                  await createUserProfile(
-                    newUser.id, 
-                    newUser.email,
-                    null
-                  );
-                } catch (createErr) {
-                  console.error('❌ Impossible de créer le profil:', createErr);
-                }
+            console.log('✅ [AuthScreen] User authenticated:', newUser.email);
+
+            // Check/create profile...
+            try {
+              const { data: existingProfile } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', newUser.id)
+                .maybeSingle();
+
+              if (existingProfile) {
+                console.log('✅ [AuthScreen] Existing profile - LOGIN');
+              } else {
+                console.log('📝 [AuthScreen] Creating profile...');
+                await createUserProfile(newUser.id, newUser.email, null);
               }
-
-              Alert.alert('Succès', 'Connecté avec Google!');
+            } catch (err) {
+              console.error('❌ [AuthScreen] Profile error:', err);
             }
+
+            console.log('🎉 [AuthScreen] Authentication complete!');
           } else {
-            throw new Error('Tokens d\'authentification non trouvés');
+            console.error('❌ [AuthScreen] No code or tokens in callback');
+            setError('Authentication failed - no credentials received');
           }
-        } else if (result.type === 'cancel') {
-          setError('Connexion Google annulée');
         }
+        
+      } else if (result.type === 'cancel') {
+        console.log('⚠️ [AuthScreen] User cancelled sign-in');
+        setError('Google sign-in was cancelled');
+      } else if (result.type === 'dismiss') {
+        console.log('⚠️ [AuthScreen] Browser dismissed');
+        setError('Sign-in window was closed');
+      } else {
+        console.log('⚠️ [AuthScreen] Unknown result type:', result.type);
+        setError('An unexpected error occurred');
       }
     } catch (err) {
-      console.error('❌ Erreur de connexion Google:', err);
-      setError(err.message || 'Impossible de se connecter avec Google');
-      Alert.alert('Erreur', err.message || 'Impossible de se connecter avec Google');
+      console.error('❌ [AuthScreen] Exception:', err);
+      setError(err.message || 'Failed to sign in with Google');
     } finally {
       setLoading(false);
     }
   };
+
+  if (emailSent) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <Text style={styles.greeting}>Email envoyé!</Text>
+              <Text style={styles.subtitle}>Vérifiez votre boîte de réception</Text>
+            </View>
+          </View>
+
+          <View style={styles.formCard}>
+            <View style={styles.successContainer}>
+              <Text style={styles.successIcon}>📧</Text>
+              <Text style={styles.successTitle}>Confirmez votre email</Text>
+              <Text style={styles.successMessage}>
+                Un email de confirmation a été envoyé à {'\n'}
+                <Text style={{ fontWeight: 'bold', color: '#1085a8ff' }}>{email}</Text>
+                {'\n\n'}
+                Cliquez sur le lien dans l'email pour activer votre compte.
+              </Text>
+              
+              <TouchableOpacity
+                style={styles.backToLoginButton}
+                onPress={() => {
+                  setEmailSent(false);
+                  setIsSignUp(false);
+                  setError(null);
+                }}
+              >
+                <Text style={styles.backToLoginButtonText}>Retour à la connexion</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -478,7 +586,10 @@ export default function AuthScreen() {
             </View>
 
             <View style={styles.socialButtons}>
-              <TouchableOpacity style={styles.socialButton} disabled={loading}>
+              <TouchableOpacity 
+                style={styles.socialButton} 
+                disabled={true}
+              >
                 <Text style={styles.socialIcon}>f</Text>
               </TouchableOpacity>
 
@@ -533,6 +644,12 @@ const styles = StyleSheet.create({
   formTitle: { fontSize: 32, fontWeight: 'bold', color: '#1085a8ff', marginBottom: 30 },
   errorContainer: { backgroundColor: '#fee2e2', borderRadius: 8, padding: 12, marginBottom: 16, borderLeftWidth: 4, borderLeftColor: '#dc2626' },
   errorText: { color: '#dc2626', fontSize: 14, fontWeight: '600' },
+  successContainer: { alignItems: 'center', paddingVertical: 40 },
+  successIcon: { fontSize: 80, marginBottom: 20 },
+  successTitle: { fontSize: 24, fontWeight: 'bold', color: '#1085a8ff', marginBottom: 16, textAlign: 'center' },
+  successMessage: { fontSize: 16, color: '#6b7280', textAlign: 'center', marginBottom: 32, lineHeight: 24, paddingHorizontal: 20 },
+  backToLoginButton: { backgroundColor: '#1085a8ff', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },
+  backToLoginButtonText: { fontSize: 16, fontWeight: 'bold', color: '#ffffff' },
   inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, height: 56 },
   inputIcon: { fontSize: 20, marginRight: 12 },
   input: { flex: 1, fontSize: 16, color: '#1f2937' },

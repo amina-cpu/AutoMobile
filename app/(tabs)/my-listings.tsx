@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,6 +28,8 @@ export default function MyListingsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [location, setLocation] = useState('Chargement...');
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [listingToDelete, setListingToDelete] = useState(null);
 
   // Helper function to get image URL
   const getImageUrl = (imagePath) => {
@@ -160,26 +163,18 @@ export default function MyListingsScreen() {
   };
 
   const handleDelete = (listing) => {
-    Alert.alert(
-      'Supprimer l\'annonce',
-      `Êtes-vous sûr de vouloir supprimer "${listing.brand} ${listing.model}"?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: () => confirmDelete(listing.id),
-        },
-      ]
-    );
+    setListingToDelete(listing);
+    setDeleteModalVisible(true);
   };
 
-  const confirmDelete = async (listingId) => {
+  const confirmDelete = async () => {
+    if (!listingToDelete) return;
+
     try {
-      console.log('🗑️ Deleting listing:', listingId);
+      console.log('🗑️ Deleting listing:', listingToDelete.id);
 
       const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/cars?id=eq.${listingId}`,
+        `${SUPABASE_URL}/rest/v1/cars?id=eq.${listingToDelete.id}`,
         {
           method: 'DELETE',
           headers: {
@@ -193,13 +188,17 @@ export default function MyListingsScreen() {
         throw new Error(`Delete failed: ${response.status}`);
       }
 
-      setListings(prev => prev.filter(item => item.id !== listingId));
-      setFilteredListings(prev => prev.filter(item => item.id !== listingId));
+      setListings(prev => prev.filter(item => item.id !== listingToDelete.id));
+      setFilteredListings(prev => prev.filter(item => item.id !== listingToDelete.id));
+      setDeleteModalVisible(false);
+      setListingToDelete(null);
       Alert.alert('Succès', 'Annonce supprimée avec succès');
       console.log('✅ Listing deleted');
     } catch (error) {
       console.error('❌ Error:', error);
       Alert.alert('Erreur', 'Impossible de supprimer l\'annonce');
+      setDeleteModalVisible(false);
+      setListingToDelete(null);
     }
   };
 
@@ -250,7 +249,10 @@ export default function MyListingsScreen() {
                 handleEditListing(item);
               }}
             >
-              <Text style={styles.editBtnIcon}>✏️</Text>
+              <View style={styles.editIcon}>
+                <View style={styles.editPencilBody} />
+                <View style={styles.editPencilTip} />
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -260,7 +262,12 @@ export default function MyListingsScreen() {
                 handleDelete(item);
               }}
             >
-              <Text style={styles.deleteBtnIcon}>🗑️</Text>
+              <View style={styles.deleteIcon}>
+                <View style={styles.trashLid} />
+                <View style={styles.trashBody} />
+                <View style={styles.trashLine1} />
+                <View style={styles.trashLine2} />
+              </View>
             </TouchableOpacity>
           </View>
           
@@ -324,12 +331,12 @@ export default function MyListingsScreen() {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Text style={styles.headerBackText}>‹</Text>
           </TouchableOpacity>
           <View style={styles.locationTextRow}>
             <Text style={styles.locationText}>{location} ▼</Text>
           </View>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('notification')}>
             <View style={styles.notificationIconContainer}>
               <View style={styles.bellIcon}>
                 <View style={styles.bellTop} />
@@ -351,9 +358,6 @@ export default function MyListingsScreen() {
               onChangeText={handleSearch}
             />
           </View>
-          <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterIcon}>☰</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -380,6 +384,40 @@ export default function MyListingsScreen() {
           renderEmptyState()
         )}
       </ScrollView>
+
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteTitle}>Supprimer l'annonce</Text>
+            <Text style={styles.deleteMessage}>
+              Êtes-vous sûr de vouloir supprimer "{listingToDelete?.brand} {listingToDelete?.model}"?
+            </Text>
+
+            <View style={styles.deleteButtonContainer}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.cancelDeleteButton]}
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setListingToDelete(null);
+                }}
+              >
+                <Text style={styles.cancelDeleteText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.confirmDeleteButton]}
+                onPress={confirmDelete}
+              >
+                <Text style={styles.confirmDeleteText}>Supprimer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -389,10 +427,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  headerBackButton: { 
+  width: 40, 
+  height: 40, 
+  borderRadius: 18,              // ← Changed from 20
+  backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+  justifyContent: 'center', 
+  alignItems: 'center' 
+},
+
+headerBackText: { 
+  fontSize: 28,                  // ← Changed from 20
+  color: '#fff', 
+  fontWeight: 'bold',
+  marginBottom: 10               // ← Add this line
+},
   headerContainer: {
     backgroundColor: '#1085a8ff',
     paddingHorizontal: 20,
-    paddingTop: 30,
+    paddingTop: 10,
     paddingBottom: 30,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -402,6 +455,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+    marginTop: 20,
   },
   backButton: {
     width: 40,
@@ -414,7 +468,7 @@ const styles = StyleSheet.create({
   backIcon: {
     fontSize: 24,
     color: '#fff',
-    marginBottom:7,
+    marginBottom: 7,
     fontWeight: '600',
   },
   locationTextRow: {
@@ -641,8 +695,35 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  editBtnIcon: {
-    fontSize: 16,
+  editIcon: {
+    width: 18,
+    height: 18,
+    position: 'relative',
+  },
+  editPencilBody: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 14,
+    height: 14,
+    borderWidth: 2,
+    borderColor: '#0284c7',
+    borderRadius: 2,
+    transform: [{ rotate: '45deg' }],
+  },
+  editPencilTip: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 4,
+    borderRightWidth: 4,
+    borderBottomWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#0284c7',
+    transform: [{ rotate: '45deg' }],
   },
   deleteBtn: {
     position: 'absolute',
@@ -660,8 +741,47 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  deleteBtnIcon: {
-    fontSize: 16,
+  deleteIcon: {
+    width: 16,
+    height: 20,
+    position: 'relative',
+  },
+  trashLid: {
+    position: 'absolute',
+    top: 0,
+    left: -1,
+    width: 18,
+    height: 3,
+    backgroundColor: '#dc2626',
+    borderRadius: 1,
+  },
+  trashBody: {
+    position: 'absolute',
+    top: 4,
+    left: 1,
+    width: 14,
+    height: 14,
+    borderWidth: 2,
+    borderColor: '#dc2626',
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
+  },
+  trashLine1: {
+    position: 'absolute',
+    top: 7,
+    left: 5,
+    width: 2,
+    height: 8,
+    backgroundColor: '#dc2626',
+  },
+  trashLine2: {
+    position: 'absolute',
+    top: 7,
+    right: 5,
+    width: 2,
+    height: 8,
+    backgroundColor: '#dc2626',
   },
   carInfo: {
     padding: 16,
@@ -692,5 +812,60 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6b7280',
     fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    width: '80%',
+    alignItems: 'center',
+  },
+  deleteTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  deleteMessage: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  deleteButtonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  deleteModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelDeleteButton: {
+    backgroundColor: '#f1f5f9',
+  },
+  confirmDeleteButton: {
+    backgroundColor: '#dc2626',
+  },
+  cancelDeleteText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  confirmDeleteText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

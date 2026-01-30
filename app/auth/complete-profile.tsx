@@ -1,8 +1,6 @@
-import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   KeyboardAvoidingView,
   Platform,
@@ -12,30 +10,50 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import CustomAlert from '../components/CustomAlert';
+import { useAlert } from '../hooks/useAlert';
 import { supabase } from '../src/config/supabase';
 
 const { height } = Dimensions.get('window');
 
-const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
-const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
-
-export default function CompleteProfileScreen() {
+export default function CompleteProfileScreen({ onComplete }) {
+  const { alertConfig, showSuccess, showError, dismiss } = useAlert();
   const [loading, setLoading] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const [siretNumber, setSiretNumber] = useState('');
+  const [garageName, setGarageName] = useState('');
   const [accountType, setAccountType] = useState(null);
 
   const handleCompleteProfile = async () => {
     if (!fullName.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+      showError('Erreur', 'Veuillez entrer votre nom');
       return;
     }
 
     if (!accountType) {
-      Alert.alert('Error', 'Please select an account type');
+      showError('Erreur', 'Veuillez sélectionner un type de compte');
       return;
+    }
+
+    // If seller, require garage info
+    if (accountType === 'seller') {
+      if (!siretNumber.trim()) {
+        showError('Erreur', 'Numéro de SIRET requis pour les vendeurs');
+        return;
+      }
+      if (!garageName.trim()) {
+        showError('Erreur', 'Nom du garage requis pour les vendeurs');
+        return;
+      }
+      if (!address.trim()) {
+        showError('Erreur', 'Adresse requise pour les vendeurs');
+        return;
+      }
     }
 
     try {
@@ -45,62 +63,66 @@ export default function CompleteProfileScreen() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       if (userError || !user) {
-        console.error('❌ Auth error:', userError);
+        console.error('❌ [CompleteProfile] Auth error:', userError);
         setLoading(false);
-        Alert.alert('Error', 'User not found');
+        showError('Erreur', 'Utilisateur non trouvé');
         return;
       }
 
       console.log('💾 [CompleteProfile] Updating user:', user.id);
 
-      // Get session for authenticated request
-      const { data: { session } } = await supabase.auth.getSession();
+      // Build update object based on account type
+      const updateData = {
+        full_name: fullName.trim(),
+        phone: phone.trim() || null,
+        account_type: accountType,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Add seller-specific fields
+      if (accountType === 'seller') {
+        updateData.siret = siretNumber.trim();
+        updateData.address = address.trim();
+        updateData.garage_name = garageName.trim();
+      }
+
+      // Add email if provided
+      if (email.trim()) {
+        updateData.email = email.trim();
+      }
+
+      console.log('📝 [CompleteProfile] Update data:', updateData);
+
+      // Update the profile using Supabase client
+      const { data, error } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq('id', user.id)
+        .select();
+
+      if (error) {
+        console.error('❌ [CompleteProfile] Profile update error:', error);
+        setLoading(false);
+        showError('Erreur', `Impossible de mettre à jour le profil: ${error.message}`);
+        return;
+      }
+
+      console.log('✅ [CompleteProfile] Profile updated successfully:', data);
       
-      if (!session) {
-        setLoading(false);
-        Alert.alert('Error', 'Session expired. Please log in again.');
-        return;
+      showSuccess('Profil complété', 'Votre profil a été créé avec succès!');
+      
+      // Call the onComplete callback to trigger re-check in RootLayout
+      if (onComplete) {
+        console.log('🔄 [CompleteProfile] Calling onComplete callback');
+        await onComplete();
       }
-
-      // Try with Bearer token first
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/users?id=eq.${user.id}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'apikey': API_KEY,
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
-          },
-          body: JSON.stringify({
-            full_name: fullName.trim(),
-            phone: phone.trim() || null,
-            account_type: accountType,
-            updated_at: new Date().toISOString(),
-          })
-        }
-      );
-
-      console.log('📤 [CompleteProfile] Response status:', response.status);
-      const responseText = await response.text();
-      console.log('📤 [CompleteProfile] Response body:', responseText);
-
-      if (!response.ok) {
-        setLoading(false);
-        Alert.alert('Error', `Failed to update profile: ${response.status}`);
-        return;
-      }
-
-      console.log('✅ Profile updated successfully');
+      
       setLoading(false);
-      
-      console.log('🎉 Navigating to home');
-      router.replace('/(tabs)');
+      console.log('🎉 [CompleteProfile] Profile completion flow finished');
     } catch (err) {
-      console.error('❌ Error:', err);
+      console.error('❌ [CompleteProfile] Error:', err);
       setLoading(false);
-      Alert.alert('Error', err.message || 'Failed to update profile');
+      showError('Erreur', err.message || 'Impossible de mettre à jour le profil');
     }
   };
 
@@ -118,21 +140,21 @@ export default function CompleteProfileScreen() {
           {/* Header Section */}
           <View style={styles.header}>
             <View style={styles.headerContent}>
-              <Text style={styles.greeting}>Hello!</Text>
-              <Text style={styles.subtitle}>Complete your profile to continue</Text>
+              <Text style={styles.greeting}>Bonjour!</Text>
+              <Text style={styles.subtitle}>Complétez votre profil pour continuer</Text>
             </View>
           </View>
 
           {/* Form Card */}
           <View style={styles.formCard}>
-            <Text style={styles.formTitle}>Your Information</Text>
+            <Text style={styles.formTitle}>Vos Informations</Text>
 
             {/* Full Name Input */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputIcon}>👤</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Full Name"
+                placeholder="Nom Prénom"
                 placeholderTextColor="#b0b0b0"
                 value={fullName}
                 onChangeText={setFullName}
@@ -146,7 +168,7 @@ export default function CompleteProfileScreen() {
               <Text style={styles.inputIcon}>📱</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Phone Number (Optional)"
+                placeholder="Numéro de Téléphone (Optionnel)"
                 placeholderTextColor="#b0b0b0"
                 value={phone}
                 onChangeText={setPhone}
@@ -155,9 +177,24 @@ export default function CompleteProfileScreen() {
               />
             </View>
 
+            {/* Email Input */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputIcon}>📧</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Adresse Email (Optionnel)"
+                placeholderTextColor="#b0b0b0"
+                value={email}
+                onChangeText={setEmail}
+                editable={!loading}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
             {/* Account Type Selection */}
             <View style={styles.accountTypeSection}>
-              <Text style={styles.accountTypeLabel}>I am a:</Text>
+              <Text style={styles.accountTypeLabel}>Je suis:</Text>
 
               <TouchableOpacity
                 style={[
@@ -176,7 +213,7 @@ export default function CompleteProfileScreen() {
                         accountType === 'buyer' && styles.accountTypeTextActive,
                       ]}
                     >
-                      Buyer
+                      Acheteur
                     </Text>
                     <Text
                       style={[
@@ -184,7 +221,7 @@ export default function CompleteProfileScreen() {
                         accountType === 'buyer' && styles.accountTypeDescriptionActive,
                       ]}
                     >
-                      I want to buy a car
+                      Je veux acheter une voiture
                     </Text>
                   </View>
                   {accountType === 'buyer' && (
@@ -210,7 +247,7 @@ export default function CompleteProfileScreen() {
                         accountType === 'seller' && styles.accountTypeTextActive,
                       ]}
                     >
-                      Seller
+                      Vendeur
                     </Text>
                     <Text
                       style={[
@@ -218,7 +255,7 @@ export default function CompleteProfileScreen() {
                         accountType === 'seller' && styles.accountTypeDescriptionActive,
                       ]}
                     >
-                      I want to sell my car
+                      Je veux vendre ma voiture
                     </Text>
                   </View>
                   {accountType === 'seller' && (
@@ -227,6 +264,55 @@ export default function CompleteProfileScreen() {
                 </View>
               </TouchableOpacity>
             </View>
+
+            {/* Seller-Specific Fields */}
+            {accountType === 'seller' && (
+              <View style={styles.sellerSection}>
+                <Text style={styles.sellerSectionTitle}>Informations du Garage</Text>
+
+                {/* Garage Name Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputIcon}>🏢</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Nom du Garage"
+                    placeholderTextColor="#b0b0b0"
+                    value={garageName}
+                    onChangeText={setGarageName}
+                    editable={!loading}
+                    autoCapitalize="words"
+                  />
+                </View>
+
+                {/* SIRET Number Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputIcon}>🔢</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Numéro de SIRET"
+                    placeholderTextColor="#b0b0b0"
+                    value={siretNumber}
+                    onChangeText={setSiretNumber}
+                    editable={!loading}
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                {/* Address Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputIcon}>📍</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Adresse du Garage"
+                    placeholderTextColor="#b0b0b0"
+                    value={address}
+                    onChangeText={setAddress}
+                    editable={!loading}
+                    autoCapitalize="words"
+                  />
+                </View>
+              </View>
+            )}
 
             {/* Continue Button */}
             <TouchableOpacity
@@ -237,12 +323,21 @@ export default function CompleteProfileScreen() {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.continueButtonText}>Continue</Text>
+                <Text style={styles.continueButtonText}>Continuer</Text>
               )}
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        type={alertConfig.type}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onDismiss={dismiss}
+        duration={alertConfig.duration}
+      />
     </SafeAreaView>
   );
 }
@@ -366,6 +461,22 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#1085a8ff',
     fontWeight: 'bold',
+  },
+  sellerSection: {
+    backgroundColor: '#f0f9fc',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1085a8ff',
+  },
+  sellerSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1085a8ff',
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   continueButton: {
     backgroundColor: '#1085a8ff',

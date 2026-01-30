@@ -1,38 +1,28 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
-import { supabase } from '../src/config/supabase';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 export default function AuthCallback() {
   const router = useRouter();
 
   useEffect(() => {
-    handleCallback();
+    // Simply redirect back to root
+    // RootLayout will handle the session detection automatically
+    console.log('🔄 [AuthCallback] OAuth callback received, redirecting...');
+    
+    // Small delay to ensure session is set
+    const timer = setTimeout(() => {
+      console.log('🏠 [AuthCallback] Redirecting to root');
+      router.replace('/');
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 
-  const handleCallback = async () => {
-    try {
-      // The OAuth callback is already handled by Supabase
-      // Just check if user is authenticated and redirect
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        // User is authenticated, the RootLayout will automatically
-        // detect the user and show the home screen
-        router.replace('/(tabs)');
-      } else {
-        // No user, go back to auth
-        router.replace('/auth/auth');
-      }
-    } catch (error) {
-      console.error('Callback error:', error);
-      router.replace('/auth/auth');
-    }
-  };
-
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator size="large" color="#3b82f6" />
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f4ff' }}>
+      <ActivityIndicator size="large" color="#1085a8ff" />
+      <Text style={{ marginTop: 16, color: '#6b7280' }}>Finalizing authentication...</Text>
     </View>
   );
 }

@@ -28,6 +28,7 @@ export default function ExploreScreen() {
   const [brands, setBrands] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [brandsLoading, setBrandsLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
 
   // Helper function to get image URL - SAME AS PRODUCT DETAIL
   const getImageUrl = (imagePath) => {
@@ -46,7 +47,20 @@ export default function ExploreScreen() {
 
   useEffect(() => {
     getUserLocation();
+    getCurrentUser();
   }, []);
+
+  const getCurrentUser = async () => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        console.log('✅ [ExploreScreen] User:', user.id);
+      }
+    } catch (error) {
+      console.error('❌ [ExploreScreen] Error getting user:', error);
+    }
+  };
 
   const getUserLocation = async () => {
     try {
@@ -86,8 +100,46 @@ export default function ExploreScreen() {
       console.log('🔄 ExploreScreen focused - loading data');
       loadCars();
       loadBrands();
+      loadUserFavorites();
     }, [])
   );
+
+  const loadUserFavorites = async () => {
+    try {
+      if (!userId) return;
+
+      console.log('💾 [ExploreScreen] Loading user favorites for:', userId);
+
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/favorites?user_id=eq.${userId}`,
+        {
+          headers: {
+            'apikey': API_KEY,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        console.error('❌ [ExploreScreen] Failed to load favorites');
+        return;
+      }
+
+      const data = await response.json();
+      const favoritedCarIds = {};
+      
+      if (Array.isArray(data)) {
+        data.forEach(fav => {
+          favoritedCarIds[fav.car_id] = true;
+        });
+      }
+
+      setLiked(favoritedCarIds);
+      console.log('✅ [ExploreScreen] Loaded favorites:', Object.keys(favoritedCarIds).length);
+    } catch (error) {
+      console.error('❌ [ExploreScreen] Error loading favorites:', error);
+    }
+  };
 
   const loadBrands = async () => {
     try {
@@ -235,11 +287,72 @@ export default function ExploreScreen() {
     setFilteredCars(filtered);
   };
 
-  const toggleLike = (carId) => {
-    setLiked(prev => ({
-      ...prev,
-      [carId]: !prev[carId]
-    }));
+  const toggleLike = async (carId) => {
+    try {
+      if (!userId) {
+        console.warn('⚠️ [ExploreScreen] No user logged in');
+        return;
+      }
+
+      const isCurrentlyLiked = liked[carId];
+
+      if (isCurrentlyLiked) {
+        // Remove from favorites
+        console.log('🗑️ [ExploreScreen] Removing favorite:', carId);
+        
+        const response = await fetch(
+          `${SUPABASE_URL}/rest/v1/favorites?user_id=eq.${userId}&car_id=eq.${carId}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'apikey': API_KEY,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (!response.ok) {
+          console.error('❌ [ExploreScreen] Failed to remove favorite');
+          return;
+        }
+
+        console.log('✅ [ExploreScreen] Favorite removed');
+      } else {
+        // Add to favorites
+        console.log('💾 [ExploreScreen] Adding favorite:', carId);
+        
+        const response = await fetch(
+          `${SUPABASE_URL}/rest/v1/favorites`,
+          {
+            method: 'POST',
+            headers: {
+              'apikey': API_KEY,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              car_id: carId
+            })
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ [ExploreScreen] Failed to add favorite:', errorText);
+          return;
+        }
+
+        console.log('✅ [ExploreScreen] Favorite added');
+      }
+
+      // Update local state
+      setLiked(prev => ({
+        ...prev,
+        [carId]: !prev[carId]
+      }));
+    } catch (error) {
+      console.error('❌ [ExploreScreen] Error toggling favorite:', error);
+    }
   };
 
   const renderCarCard = ({ item }) => {
@@ -339,9 +452,9 @@ export default function ExploreScreen() {
               onChangeText={handleSearch}
             />
           </View>
-          <TouchableOpacity style={styles.filterButton}>
+          {/* <TouchableOpacity style={styles.filterButton}>
             <Text style={styles.filterIcon}>☰</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </View>
 
@@ -433,6 +546,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1085a8ff',
     paddingHorizontal: 20,
     paddingTop: 30,
+   
     paddingBottom: 30,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -504,8 +618,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     borderRadius: 12,
+    marginTop:5,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
   },
