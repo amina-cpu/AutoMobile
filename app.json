@@ -4,14 +4,14 @@
     "slug": "Automobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/auto.png",
+    "icon": "./assets/images/LOGOO.png",
     "scheme": "automobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/auto.png",
       "resizeMode": "cover",
-      "backgroundColor": "#1085a8ff"
+      "backgroundColor": "#05696F"
     },
     "ios": {
       "supportsTablet": true,
@@ -22,8 +22,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#1085a8ff",
-        "foregroundImage": "./assets/images/android-icon-foreground.png"
+        "backgroundColor": "#05696F",
+        "foregroundImage": "./assets/images/LOGOO.png"
       },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",

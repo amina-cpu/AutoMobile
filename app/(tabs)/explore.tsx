@@ -1,10 +1,12 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -14,11 +16,30 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/config/supabase';
 
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',      // RGB(5, 59, 67) - Darkest
+  darkTeal2: '#064C53',      // RGB(6, 76, 83) - Dark
+  darkTeal3: '#05696F',      // RGB(5, 105, 111) - Medium
+  primaryGreen: '#41B975',   // RGB(65, 185, 117) - Primary accent
+  darkGreen: '#268865',      // RGB(38, 136, 101) - Secondary accent
+  white: '#FFFFFF',
+  black: '#000000',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray500: '#64748b',
+  gray700: '#1f2937',
+};
+
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
 
 export default function ExploreScreen() {
   const navigation = useNavigation();
+  const router = useRouter();
   const [cars, setCars] = useState([]);
   const [filteredCars, setFilteredCars] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +51,7 @@ export default function ExploreScreen() {
   const [brandsLoading, setBrandsLoading] = useState(true);
   const [userId, setUserId] = useState(null);
 
-  // Helper function to get image URL - SAME AS PRODUCT DETAIL
+  // Helper function to get image URL
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     
@@ -424,13 +445,18 @@ export default function ExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.fullContainer}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
+      
+      {/* Header extends into status bar area */}
       <View style={styles.headerContainer}>
         <View style={styles.locationRow}>
           <View style={styles.locationTextRow}>
             <Text style={styles.locationText}>{location} ▼</Text>
           </View>
-          <TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/notification')}
+          >
             <View style={styles.notificationIconContainer}>
               <View style={styles.bellIcon}>
                 <View style={styles.bellTop} />
@@ -447,109 +473,110 @@ export default function ExploreScreen() {
             <TextInput
               style={styles.searchInput}
               placeholder="Recherche par Marques, modele..."
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={COLORS.gray400}
               value={searchQuery}
               onChangeText={handleSearch}
             />
           </View>
-          {/* <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterIcon}>☰</Text>
-          </TouchableOpacity> */}
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Marques</Text>
-        </View>
-
-        {brandsLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#1085a8ff" />
+      {/* Content area with safe area for bottom */}
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Marques</Text>
           </View>
-        ) : brands.length > 0 ? (
-          <View style={styles.brandsScrollContainer}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.brandsScroll}
-            >
-              {brands.map((brand, index) => (
-                <TouchableOpacity 
-                  key={index} 
-                  style={[
-                    styles.brandCard,
-                    (selectedBrand === brand || (brand === 'Tous' && selectedBrand === null)) && styles.brandCardActive
-                  ]}
-                  onPress={() => handleBrandSelect(brand)}
-                >
-                  <Text style={[
-                    styles.brandName,
-                    (selectedBrand === brand || (brand === 'Tous' && selectedBrand === null)) && styles.brandNameActive
-                  ]}>
-                    {brand}
-                  </Text>
-                </TouchableOpacity>
+
+          {brandsLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={COLORS.darkTeal1} />
+            </View>
+          ) : brands.length > 0 ? (
+            <View style={styles.brandsScrollContainer}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.brandsScroll}
+              >
+                {brands.map((brand, index) => (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={[
+                      styles.brandCard,
+                      (selectedBrand === brand || (brand === 'Tous' && selectedBrand === null)) && styles.brandCardActive
+                    ]}
+                    onPress={() => handleBrandSelect(brand)}
+                  >
+                    <Text style={[
+                      styles.brandName,
+                      (selectedBrand === brand || (brand === 'Tous' && selectedBrand === null)) && styles.brandNameActive
+                    ]}>
+                      {brand}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Aucune marque disponible</Text>
+            </View>
+          )}
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Voitures Populaire</Text>
+          </View>
+
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.darkTeal1} />
+              <Text style={styles.loadingText}>Chargement des voitures...</Text>
+            </View>
+          ) : !Array.isArray(filteredCars) ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Erreur de chargement des données</Text>
+            </View>
+          ) : filteredCars.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {selectedBrand 
+                  ? `Aucun véhicule trouvé pour "${selectedBrand}"`
+                  : searchQuery 
+                    ? `Aucun véhicule trouvé pour "${searchQuery}"`
+                    : 'Aucun véhicule disponible'
+                }
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.carListingContainer}>
+              {filteredCars.map((item) => (
+                <View key={item.id}>
+                  {renderCarCard({ item })}
+                </View>
               ))}
-            </ScrollView>
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Aucune marque disponible</Text>
-          </View>
-        )}
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Voitures Populaire</Text>
-        </View>
-
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#1085a8ff" />
-            <Text style={styles.loadingText}>Chargement des voitures...</Text>
-          </View>
-        ) : !Array.isArray(filteredCars) ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Erreur de chargement des données</Text>
-          </View>
-        ) : filteredCars.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {selectedBrand 
-                ? `Aucun véhicule trouvé pour "${selectedBrand}"`
-                : searchQuery 
-                  ? `Aucun véhicule trouvé pour "${searchQuery}"`
-                  : 'Aucun véhicule disponible'
-              }
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.carListingContainer}>
-            {filteredCars.map((item) => (
-              <View key={item.id}>
-                {renderCarCard({ item })}
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fullContainer: {
+    flex: 1,
+    backgroundColor: COLORS.darkTeal1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.lightGray,
   },
   headerContainer: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 20,
-    paddingTop: 30,
-   
-    paddingBottom: 30,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    paddingTop: 50, // Increased to account for status bar
+    paddingBottom: 20,
   },
   locationRow: {
     flexDirection: 'row',
@@ -564,7 +591,7 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.white,
   },
   searchRow: {
     flexDirection: 'row',
@@ -582,7 +609,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderWidth: 2,
-    borderColor: '#FFF',
+    borderColor: COLORS.white,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     borderBottomWidth: 0,
@@ -591,7 +618,7 @@ const styles = StyleSheet.create({
   bellBottom: {
     width: 20,
     height: 4,
-    backgroundColor: '#FFFF',
+    backgroundColor: COLORS.white,
     borderBottomLeftRadius: 2,
     borderBottomRightRadius: 2,
     marginTop: -1,
@@ -599,7 +626,7 @@ const styles = StyleSheet.create({
   bellClapper: {
     width: 4,
     height: 4,
-    backgroundColor: '#FFFF',
+    backgroundColor: COLORS.white,
     borderRadius: 2,
     position: 'absolute',
     bottom: 2,
@@ -612,13 +639,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ef4444',
+    backgroundColor: COLORS.primaryGreen,
   },
   searchBox: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderRadius: 12,
-    marginTop:5,
     paddingHorizontal: 16,
     paddingVertical: 8,
     flexDirection: 'row',
@@ -627,32 +653,20 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
-  },
-  filterButton: {
-    backgroundColor: '#fff',
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterIcon: {
-    fontSize: 22,
-    color: '#1085a8ff',
+    color: COLORS.gray700,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginTop: 16,
+    marginTop: 20,
     marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: COLORS.gray700,
   },
   brandsScrollContainer: {
     marginBottom: 16,
@@ -662,31 +676,31 @@ const styles = StyleSheet.create({
   },
   brandCard: {
     height: 70,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#1085a8ff',
+    borderColor: COLORS.darkTeal1,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     paddingHorizontal: 16,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
   },
   brandCardActive: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
   },
   brandName: {
     fontSize: 13,
-    color: '#1085a8ff',
+    color: COLORS.darkTeal1,
     fontWeight: '600',
     textAlign: 'center',
   },
   brandNameActive: {
-    color: '#fff',
+    color: COLORS.white,
   },
   carListingContainer: {
     paddingBottom: 100,
@@ -700,7 +714,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666',
+    color: COLORS.gray500,
   },
   emptyContainer: {
     flex: 1,
@@ -711,16 +725,16 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: COLORS.gray400,
     textAlign: 'center',
   },
   carCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     paddingHorizontal: 10,
     marginHorizontal: 10,
     marginBottom: 20,
     paddingTop: 30,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -730,7 +744,7 @@ const styles = StyleSheet.create({
   carImageContainer: {
     position: 'relative',
     height: 200,
-    backgroundColor: '#f9fafb',
+    backgroundColor: COLORS.gray200,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -746,7 +760,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 160,
     left: 12,
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
@@ -757,35 +771,35 @@ const styles = StyleSheet.create({
   dealBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#fff',
+    color: COLORS.white,
   },
   priceTag: {
     position: 'absolute',
     top: 170,
     right: 12,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: COLORS.white,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#1085a8ff',
+    borderColor: COLORS.primaryGreen,
   },
   priceTagText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1085a8ff',
+    color: COLORS.primaryGreen,
   },
   likeButton: {
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderRadius: 24,
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -800,7 +814,7 @@ const styles = StyleSheet.create({
   carName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1f2937',
+    color: COLORS.gray700,
     marginBottom: 12,
   },
   carDetailsRow: {
@@ -814,14 +828,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: COLORS.darkTeal1 + '15',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.darkGreen,
   },
   specText: {
     fontSize: 11,
-    color: '#6b7280',
-    fontWeight: '500',
+    color: COLORS.darkTeal1,
+    fontWeight: '600',
   },
 });

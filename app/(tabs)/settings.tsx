@@ -1,19 +1,41 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomAlert from '../components/CustomAlert';
 import { useAlert } from '../hooks/useAlert';
 import { supabase } from '../src/config/supabase';
+
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',
+  darkTeal2: '#064C53',
+  darkTeal3: '#05696F',
+  primaryGreen: '#41B975',
+  darkGreen: '#268865',
+  white: '#FFFFFF',
+  black: '#000000',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray500: '#64748b',
+  gray700: '#1f2937',
+  red: '#ef4444',
+  lightRed: '#fee2e2',
+  lightBlue: '#e0f2fe',
+};
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -142,7 +164,9 @@ export default function SettingsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.fullContainer}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
+        
         <View style={styles.headerContainer}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -153,16 +177,21 @@ export default function SettingsScreen() {
           <Text style={styles.headerTitle}>Paramètres</Text>
           <View style={styles.placeholder} />
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1085a8ff" />
-          <Text style={styles.loadingText}>Chargement...</Text>
-        </View>
-      </SafeAreaView>
+        
+        <SafeAreaView style={styles.container} edges={['bottom']}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primaryGreen} />
+            <Text style={styles.loadingText}>Chargement...</Text>
+          </View>
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.fullContainer}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
+      
       <View style={styles.headerContainer}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -174,231 +203,235 @@ export default function SettingsScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView 
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Notifications Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          
-          <View style={styles.settingCard}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingIconContainer}>
-                <View style={styles.bellIcon}>
-                  <View style={styles.bellBody} />
-                  <View style={styles.bellHandle} />
-                  {notificationsEnabled && <View style={styles.bellDot} />}
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView 
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Notifications Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Notifications</Text>
+            
+            <View style={styles.settingCard}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingIconContainer}>
+                  <View style={styles.bellIcon}>
+                    <View style={styles.bellBody} />
+                    <View style={styles.bellHandle} />
+                    {notificationsEnabled && <View style={styles.bellDot} />}
+                  </View>
                 </View>
+                
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingTitle}>Notifications push</Text>
+                  <Text style={styles.settingDescription}>
+                    Recevoir des notifications lorsque quelqu'un aime vos annonces
+                  </Text>
+                </View>
+                
+                <Switch
+                  value={notificationsEnabled}
+                  onValueChange={toggleNotifications}
+                  trackColor={{ false: COLORS.gray300, true: COLORS.primaryGreen + '80' }}
+                  thumbColor={notificationsEnabled ? COLORS.primaryGreen : COLORS.gray200}
+                  ios_backgroundColor={COLORS.gray300}
+                  disabled={saving}
+                />
               </View>
-              
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Notifications push</Text>
-                <Text style={styles.settingDescription}>
-                  Recevoir des notifications lorsque quelqu'un aime vos annonces
-                </Text>
-              </View>
-              
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={toggleNotifications}
-                trackColor={{ false: '#e5e7eb', true: '#7dd3fc' }}
-                thumbColor={notificationsEnabled ? '#1085a8ff' : '#f3f4f6'}
-                ios_backgroundColor="#e5e7eb"
-                disabled={saving}
-              />
             </View>
           </View>
-        </View>
 
-        {/* Account Section */}
-        {/* <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Compte</Text>
-          
-          <View style={styles.settingCard}>
-            <TouchableOpacity 
-              style={styles.settingRow}
-              onPress={() => router.push('/profile')}
-            >
-              <View style={styles.settingIconContainer}>
-                <View style={styles.userIcon}>
-                  <View style={styles.userHead} />
-                  <View style={styles.userBody} />
+          {/* Account Section */}
+          {/* <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Compte</Text>
+            
+            <View style={styles.settingCard}>
+              <TouchableOpacity 
+                style={styles.settingRow}
+                onPress={() => router.push('/profile')}
+              >
+                <View style={styles.settingIconContainer}>
+                  <View style={styles.userIcon}>
+                    <View style={styles.userHead} />
+                    <View style={styles.userBody} />
+                  </View>
                 </View>
-              </View>
-              
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Modifier le profil</Text>
-                <Text style={styles.settingDescription}>
-                  Nom, email, photo de profil
-                </Text>
-              </View>
-              
-              <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity 
-              style={styles.settingRow}
-              onPress={() => router.push('/my-listings')}
-            >
-              <View style={styles.settingIconContainer}>
-                <View style={styles.listIcon}>
-                  <View style={styles.listLine} />
-                  <View style={styles.listLine} />
-                  <View style={styles.listLine} />
+                
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingTitle}>Modifier le profil</Text>
+                  <Text style={styles.settingDescription}>
+                    Nom, email, photo de profil
+                  </Text>
                 </View>
-              </View>
-              
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Mes annonces</Text>
-                <Text style={styles.settingDescription}>
-                  Gérer vos véhicules en vente
-                </Text>
-              </View>
-              
-              <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
+                
+                <Text style={styles.chevron}>›</Text>
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+
+              <TouchableOpacity 
+                style={styles.settingRow}
+                onPress={() => router.push('/my-listings')}
+              >
+                <View style={styles.settingIconContainer}>
+                  <View style={styles.listIcon}>
+                    <View style={styles.listLine} />
+                    <View style={styles.listLine} />
+                    <View style={styles.listLine} />
+                  </View>
+                </View>
+                
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingTitle}>Mes annonces</Text>
+                  <Text style={styles.settingDescription}>
+                    Gérer vos véhicules en vente
+                  </Text>
+                </View>
+                
+                <Text style={styles.chevron}>›</Text>
+              </TouchableOpacity>
+            </View>
+          </View> */}
+
+          {/* About Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>À propos</Text>
+            
+            <View style={styles.settingCard}>
+              <TouchableOpacity 
+                style={styles.settingRow}
+                onPress={() => Alert.alert('Version', 'Automobile v1.0.0')}
+              >
+                <View style={styles.settingIconContainer}>
+                  <View style={styles.infoIcon}>
+                    <Text style={styles.infoText}>i</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingTitle}>Version de l'app</Text>
+                  <Text style={styles.settingDescription}>v1.0.0</Text>
+                </View>
+                
+                <Text style={styles.chevron}>›</Text>
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+
+              <TouchableOpacity 
+                style={styles.settingRow}
+                onPress={() => Alert.alert('Conditions', 'Conditions d\'utilisation')}
+              >
+                <View style={styles.settingIconContainer}>
+                  <View style={styles.docIcon}>
+                    <View style={styles.docBody} />
+                    <View style={styles.docLines} />
+                  </View>
+                </View>
+                
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingTitle}>Conditions d'utilisation</Text>
+                </View>
+                
+                <Text style={styles.chevron}>›</Text>
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+
+              <TouchableOpacity 
+                style={styles.settingRow}
+                onPress={() => Alert.alert('Confidentialité', 'Politique de confidentialité')}
+              >
+                <View style={styles.settingIconContainer}>
+                  <View style={styles.lockIcon}>
+                    <View style={styles.lockBody} />
+                    <View style={styles.lockShackle} />
+                  </View>
+                </View>
+                
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingTitle}>Confidentialité</Text>
+                </View>
+                
+                <Text style={styles.chevron}>›</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View> */}
 
-        {/* About Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>À propos</Text>
-          
-          <View style={styles.settingCard}>
-            <TouchableOpacity 
-              style={styles.settingRow}
-              onPress={() => Alert.alert('Version', 'Automobile v1.0.0')}
-            >
-              <View style={styles.settingIconContainer}>
-                <View style={styles.infoIcon}>
-                  <Text style={styles.infoText}>i</Text>
+          {/* Danger Zone */}
+          {/* <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Zone dangereuse</Text>
+            
+            <View style={styles.settingCard}>
+              <TouchableOpacity 
+                style={styles.settingRow}
+                onPress={handleDeleteAccount}
+                disabled={saving}
+              >
+                <View style={[styles.settingIconContainer, styles.dangerIcon]}>
+                  <View style={styles.trashIcon}>
+                    <View style={styles.trashLid} />
+                    <View style={styles.trashBody} />
+                  </View>
                 </View>
-              </View>
-              
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Version de l'app</Text>
-                <Text style={styles.settingDescription}>v1.0.0</Text>
-              </View>
-              
-              <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity 
-              style={styles.settingRow}
-              onPress={() => Alert.alert('Conditions', 'Conditions d\'utilisation')}
-            >
-              <View style={styles.settingIconContainer}>
-                <View style={styles.docIcon}>
-                  <View style={styles.docBody} />
-                  <View style={styles.docLines} />
+                
+                <View style={styles.settingTextContainer}>
+                  <Text style={[styles.settingTitle, styles.dangerText]}>
+                    Supprimer le compte
+                  </Text>
+                  <Text style={styles.settingDescription}>
+                    Cette action est irréversible
+                  </Text>
                 </View>
-              </View>
-              
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Conditions d'utilisation</Text>
-              </View>
-              
-              <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
+                
+                <Text style={[styles.chevron, styles.dangerText]}>›</Text>
+              </TouchableOpacity>
+            </View>
+          </View> */}
 
-            <View style={styles.divider} />
+          <View style={{ height: 40 }} />
+        </ScrollView>
 
-            <TouchableOpacity 
-              style={styles.settingRow}
-              onPress={() => Alert.alert('Confidentialité', 'Politique de confidentialité')}
-            >
-              <View style={styles.settingIconContainer}>
-                <View style={styles.lockIcon}>
-                  <View style={styles.lockBody} />
-                  <View style={styles.lockShackle} />
-                </View>
-              </View>
-              
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Confidentialité</Text>
-              </View>
-              
-              <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Danger Zone */}
-        {/* <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Zone dangereuse</Text>
-          
-          <View style={styles.settingCard}>
-            <TouchableOpacity 
-              style={styles.settingRow}
-              onPress={handleDeleteAccount}
-              disabled={saving}
-            >
-              <View style={[styles.settingIconContainer, styles.dangerIcon]}>
-                <View style={styles.trashIcon}>
-                  <View style={styles.trashLid} />
-                  <View style={styles.trashBody} />
-                </View>
-              </View>
-              
-              <View style={styles.settingTextContainer}>
-                <Text style={[styles.settingTitle, styles.dangerText]}>
-                  Supprimer le compte
-                </Text>
-                <Text style={styles.settingDescription}>
-                  Cette action est irréversible
-                </Text>
-              </View>
-              
-              <Text style={[styles.chevron, styles.dangerText]}>›</Text>
-            </TouchableOpacity>
-          </View>
-        </View> */}
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
-
-      <CustomAlert
-        visible={alertConfig.visible}
-        type={alertConfig.type}
-        title={alertConfig.title}
-        message={alertConfig.message}
-        onDismiss={dismiss}
-        duration={alertConfig.duration}
-      />
-    </SafeAreaView>
+        <CustomAlert
+          visible={alertConfig.visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          onDismiss={dismiss}
+          duration={alertConfig.duration}
+        />
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fullContainer: {
+    flex: 1,
+    backgroundColor: COLORS.darkTeal1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },headerBackButton: { 
-  width: 40, 
-  height: 40, 
-  borderRadius: 18,              // ← Changed from 20
-  backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-  justifyContent: 'center', 
-  alignItems: 'center' 
-},
-
-headerBackText: { 
-  fontSize: 28,                  // ← Changed from 20
-  color: '#fff', 
-  fontWeight: 'bold',
-  marginBottom: 10               // ← Add this line
-},
-
-
+    backgroundColor: COLORS.lightGray,
+  },
+  headerBackButton: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  headerBackText: { 
+    fontSize: 28,
+    color: COLORS.white, 
+    fontWeight: 'bold',
+    marginBottom: 10
+  },
   headerContainer: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
@@ -410,20 +443,20 @@ headerBackText: {
     width: 40,
     height: 40,
     borderRadius: 30,
-    paddingBottom:5,
+    paddingBottom: 5,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   backIcon: {
     fontSize: 20,
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: '600',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.white,
   },
   placeholder: {
     width: 40,
@@ -439,7 +472,7 @@ headerBackText: {
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666',
+    color: COLORS.gray500,
   },
   section: {
     marginTop: 24,
@@ -448,17 +481,17 @@ headerBackText: {
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748b',
+    color: COLORS.gray500,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 12,
     marginLeft: 4,
   },
   settingCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -473,7 +506,7 @@ headerBackText: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -484,28 +517,28 @@ headerBackText: {
   settingTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
     marginBottom: 2,
   },
   settingDescription: {
     fontSize: 13,
-    color: '#64748b',
+    color: COLORS.gray500,
   },
   chevron: {
     fontSize: 24,
-    color: '#cbd5e1',
+    color: COLORS.gray400,
     fontWeight: '300',
   },
   divider: {
     height: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: COLORS.gray200,
     marginLeft: 68,
   },
   dangerIcon: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: COLORS.lightRed,
   },
   dangerText: {
-    color: '#dc2626',
+    color: COLORS.red,
   },
   // Bell Icon
   bellIcon: {
@@ -517,7 +550,7 @@ headerBackText: {
     width: 14,
     height: 12,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.white,
     borderTopLeftRadius: 7,
     borderTopRightRadius: 7,
     borderBottomWidth: 0,
@@ -526,7 +559,7 @@ headerBackText: {
   bellHandle: {
     width: 18,
     height: 4,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderBottomLeftRadius: 2,
     borderBottomRightRadius: 2,
     marginTop: -1,
@@ -539,7 +572,7 @@ headerBackText: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#ef4444',
+    backgroundColor: COLORS.red,
   },
   // User Icon
   userIcon: {
@@ -552,13 +585,13 @@ headerBackText: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     marginBottom: 2,
   },
   userBody: {
     width: 14,
     height: 10,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderTopLeftRadius: 7,
     borderTopRightRadius: 7,
   },
@@ -572,7 +605,7 @@ headerBackText: {
   listLine: {
     width: 18,
     height: 2,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderRadius: 1,
   },
   // Info Icon
@@ -581,14 +614,14 @@ headerBackText: {
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
   },
   infoText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.white,
   },
   // Doc Icon
   docIcon: {
@@ -599,7 +632,7 @@ headerBackText: {
     width: 16,
     height: 20,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.white,
     borderRadius: 2,
   },
   docLines: {
@@ -620,7 +653,7 @@ headerBackText: {
     width: 16,
     height: 12,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.white,
     borderRadius: 3,
   },
   lockShackle: {
@@ -630,7 +663,7 @@ headerBackText: {
     width: 10,
     height: 10,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.white,
     borderBottomWidth: 0,
     borderTopLeftRadius: 5,
     borderTopRightRadius: 5,
@@ -643,7 +676,7 @@ headerBackText: {
   trashLid: {
     width: 18,
     height: 3,
-    backgroundColor: '#dc2626',
+    backgroundColor: COLORS.red,
     borderRadius: 1,
     marginBottom: 1,
     alignSelf: 'center',
@@ -652,7 +685,7 @@ headerBackText: {
     width: 14,
     height: 14,
     borderWidth: 2,
-    borderColor: '#dc2626',
+    borderColor: COLORS.red,
     borderTopWidth: 0,
     borderBottomLeftRadius: 3,
     borderBottomRightRadius: 3,

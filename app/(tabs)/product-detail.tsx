@@ -11,6 +11,24 @@ import { supabase } from '../src/config/supabase';
 
 const { width } = Dimensions.get('window');
 
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',
+  darkTeal2: '#064C53',
+  darkTeal3: '#05696F',
+  primaryGreen: '#41B975',
+  darkGreen: '#268865',
+  white: '#FFFFFF',
+  black: '#000000',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray500: '#64748b',
+  gray700: '#1f2937',
+};
+
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
 
@@ -32,6 +50,7 @@ export default function ProductDetailScreen() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [sellerAvatarUrl, setSellerAvatarUrl] = useState(null);
 
   // Helper function to get image URL
   const getImageUrl = (imagePath) => {
@@ -44,6 +63,21 @@ export default function ProductDetailScreen() {
     const { data } = supabase.storage
       .from('car-images')
       .getPublicUrl(imagePath);
+    
+    return data?.publicUrl || null;
+  };
+
+  // Helper function to get user avatar URL (from 'user' bucket)
+  const getUserAvatarUrl = (avatarPath) => {
+    if (!avatarPath) return null;
+    
+    if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {
+      return avatarPath;
+    }
+    
+    const { data } = supabase.storage
+      .from('user')
+      .getPublicUrl(avatarPath);
     
     return data?.publicUrl || null;
   };
@@ -138,8 +172,15 @@ export default function ProductDetailScreen() {
 
           const sellerData = await sellerResponse.json();
           if (sellerData && sellerData.length > 0) {
-            setSeller(sellerData[0]);
-            console.log(`✅ Seller found: ${sellerData[0].full_name || sellerData[0].email}`);
+            const sellerInfo = sellerData[0];
+            setSeller(sellerInfo);
+            console.log(`✅ Seller found: ${sellerInfo.full_name || sellerInfo.email}`);
+
+            // Set seller avatar URL
+            if (sellerInfo.avatar_url) {
+              console.log('🖼️ Seller avatar URL:', sellerInfo.avatar_url);
+              setSellerAvatarUrl(sellerInfo.avatar_url);
+            }
 
             const sellerCarsResponse = await fetch(
               `${SUPABASE_URL}/rest/v1/cars?select=id&seller_id=eq.${carInfo.seller_id}`,
@@ -236,7 +277,6 @@ export default function ProductDetailScreen() {
     try {
       console.log('❤️ Loading likes data for car:', carId);
 
-      // Get total likes count for this car
       const countResponse = await fetch(
         `${SUPABASE_URL}/rest/v1/favorites?car_id=eq.${carId}&select=id`,
         {
@@ -252,7 +292,6 @@ export default function ProductDetailScreen() {
       setLikeCount(totalLikes);
       console.log(`✅ Total likes: ${totalLikes}`);
 
-      // Check if current user has liked this car
       if (userId) {
         const userLikeResponse = await fetch(
           `${SUPABASE_URL}/rest/v1/favorites?user_id=eq.${userId}&car_id=eq.${carId}`,
@@ -288,7 +327,6 @@ export default function ProductDetailScreen() {
       console.log('❤️ Toggling like for car:', car.id);
 
       if (liked) {
-        // Remove like
         const response = await fetch(
           `${SUPABASE_URL}/rest/v1/favorites?user_id=eq.${currentUser.id}&car_id=eq.${car.id}`,
           {
@@ -308,7 +346,6 @@ export default function ProductDetailScreen() {
         setLikeCount(prev => Math.max(0, prev - 1));
         console.log('✅ Like removed');
       } else {
-        // Add like
         const response = await fetch(
           `${SUPABASE_URL}/rest/v1/favorites`,
           {
@@ -438,7 +475,6 @@ export default function ProductDetailScreen() {
     if (seller?.id) {
       console.log('👤 Navigating to seller profile:', seller.id);
       
-      // If the seller is the current user, go to their own profile tab
       if (isOwner && currentUser?.id === seller.id) {
         console.log('✅ Navigating to own profile tab');
         router.push('/(tabs)/profile');
@@ -455,8 +491,8 @@ export default function ProductDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={{ marginTop: 12, color: '#666' }}>Chargement...</Text>
+        <ActivityIndicator size="large" color={COLORS.primaryGreen} />
+        <Text style={{ marginTop: 12, color: COLORS.gray500 }}>Chargement...</Text>
       </View>
     );
   }
@@ -467,9 +503,9 @@ export default function ProductDetailScreen() {
         <Text style={styles.errorText}>{error || 'Car not found'}</Text>
         <TouchableOpacity 
           onPress={() => router.back()} 
-          style={{ marginTop: 20, backgroundColor: '#1085a8ff', padding: 12, borderRadius: 8 }}
+          style={{ marginTop: 20, backgroundColor: COLORS.darkTeal1, padding: 12, borderRadius: 8 }}
         >
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>← Retour</Text>
+          <Text style={{ color: COLORS.white, fontWeight: 'bold' }}>← Retour</Text>
         </TouchableOpacity>
       </View>
     );
@@ -477,7 +513,7 @@ export default function ProductDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1085a8ff" translucent />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
       
       <View style={styles.themeHeader}>
         <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
@@ -485,14 +521,10 @@ export default function ProductDetailScreen() {
         </TouchableOpacity>
         
         <View style={styles.headerRight}>
-          {/* <TouchableOpacity style={styles.headerButton} onPress={handleShare}>
-            <Text style={{ fontSize: 20 }}>↗</Text>
-          </TouchableOpacity> */}
           <TouchableOpacity 
             style={styles.headerButton}
             onPress={handleLikeToggle}
           >
-            {/* <Text style={styles.likeCount}>{likeCount}</Text> */}
             <Text style={{ fontSize: 16 }}>{liked ? '❤️' : '🤍'}</Text>
           </TouchableOpacity>
         </View>
@@ -568,7 +600,7 @@ export default function ProductDetailScreen() {
               disabled={deleting}
             >
               {deleting ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={COLORS.white} />
               ) : (
                 <Text style={styles.deleteButtonText}>🗑️ Supprimer</Text>
               )}
@@ -581,7 +613,7 @@ export default function ProductDetailScreen() {
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleWithArrow}>
                 <Text style={styles.sectionTitle}>Ces annonces peuvent vous intéresser</Text>
-                <Text style={{ fontSize: 18, color: '#9ca3af' }}>›</Text>
+                <Text style={{ fontSize: 18, color: COLORS.gray400 }}>›</Text>
               </View>
             </View>
             <FlatList
@@ -643,10 +675,15 @@ export default function ProductDetailScreen() {
             <View style={styles.sellerCard}>
               <View style={styles.sellerInfo}>
                 <View style={styles.sellerAvatar}>
-                  {seller.avatar_url ? (
+                  {sellerAvatarUrl ? (
                     <Image 
-                      source={{ uri: getImageUrl(seller.avatar_url) }} 
-                      style={styles.sellerAvatarImage} 
+                      source={{ uri: sellerAvatarUrl }} 
+                      style={styles.sellerAvatarImage}
+                      onError={(e) => {
+                        console.error('❌ Seller avatar load error:', e.nativeEvent.error);
+                        console.log('🔗 Tried loading:', sellerAvatarUrl);
+                      }}
+                      onLoad={() => console.log('✅ Seller avatar loaded')}
                     />
                   ) : (
                     <Text style={styles.sellerAvatarText}>{getInitials(seller.full_name || seller.email)}</Text>
@@ -764,96 +801,82 @@ export default function ProductDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5'},headerBackButton: { 
-  width: 40, 
-  height: 40, 
-  borderRadius: 18,              // ← Changed from 20
-  backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-  justifyContent: 'center', 
-  alignItems: 'center' 
-},
-
-headerBackText: { 
-  fontSize: 28,                  // ← Changed from 20
-  color: '#fff', 
-  fontWeight: 'bold',
-  marginBottom: 10               // ← Add this line
-},
+  container: { flex: 1, backgroundColor: COLORS.lightGray},
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
   errorText: { fontSize: 18, color: '#ef4444', textAlign: 'center', marginBottom: 20 },
-  themeHeader: { backgroundColor: '#1085a8ff', paddingHorizontal: 20,  paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 50 },
+  themeHeader: { backgroundColor: COLORS.darkTeal1, paddingHorizontal: 20, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 50 },
   headerBackButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
-  headerBackText: { fontSize: 20, color: '#fff', fontWeight: 'bold' },
+  headerBackText: { fontSize: 24, color: COLORS.white, fontWeight: 'bold' },
   headerRight: { flexDirection: 'row', gap: 8 },
   headerButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 4 },
-  likeCount: { fontSize: 12, fontWeight: '700', color: '#fff' },
-  imageContainer: { height: 300, backgroundColor: '#000', position: 'relative', overflow: 'hidden', marginTop: 0 },
+  likeCount: { fontSize: 12, fontWeight: '700', color: COLORS.white },
+  imageContainer: { height: 300, backgroundColor: COLORS.black, position: 'relative', overflow: 'hidden', marginTop: 0 },
   carImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  navButton: { position: 'absolute', top: '50%', width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.9)', justifyContent: 'center', alignItems: 'center', marginTop: -20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, elevation: 5 },
+  navButton: { position: 'absolute', top: '50%', width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.9)', justifyContent: 'center', alignItems: 'center', marginTop: -20, shadowColor: COLORS.black, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, elevation: 5 },
   navButtonLeft: { left: 12 },
   navButtonRight: { right: 12 },
-  navButtonText: { fontSize: 20, color: '#000', fontWeight: 'bold' },
-  carInfoCard: { backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginHorizontal: 20, marginTop: 20, borderRadius: 12 },
+  navButtonText: { fontSize: 20, color: COLORS.black, fontWeight: 'bold' },
+  carInfoCard: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray300, marginHorizontal: 20, marginTop: 20, borderRadius: 12 },
   carInfoRow: { flexDirection: 'row', gap: 12 },
-  carImageThumb: { width: 80, height: 80, borderRadius: 8, backgroundColor: '#f1f5f9' },
+  carImageThumb: { width: 80, height: 80, borderRadius: 8, backgroundColor: COLORS.gray200 },
   carInfoContent: { flex: 1, justifyContent: 'space-between' },
-  carTitle: { fontSize: 16, fontWeight: '700', color: '#1f2937', marginBottom: 4 },
-  carSubtitle: { fontSize: 12, color: '#6b7280', marginBottom: 8, lineHeight: 18 },
-  price: { fontSize: 20, fontWeight: '700', color: '#1085a8ff' },
+  carTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray700, marginBottom: 4 },
+  carSubtitle: { fontSize: 12, color: COLORS.gray500, marginBottom: 8, lineHeight: 18 },
+  price: { fontSize: 20, fontWeight: '700', color: COLORS.primaryGreen },
   ownerActionsContainer: { paddingHorizontal: 20, paddingVertical: 12, gap: 8, flexDirection: 'row' },
-  editButton: { flex: 1, backgroundColor: '#1085a8ff', paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  editButtonText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  editButton: { flex: 1, backgroundColor: COLORS.darkTeal1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  editButtonText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
   deleteButton: { flex: 1, backgroundColor: '#ef4444', paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   deleteButtonDisabled: { opacity: 0.6 },
-  deleteButtonText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  recommendedSection: { backgroundColor: '#ffffff', marginBottom: 12, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  sectionHeader: { backgroundColor: '#ffffff', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#1f2937' },
+  deleteButtonText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
+  recommendedSection: { backgroundColor: COLORS.white, marginBottom: 12, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray300 },
+  sectionHeader: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray700 },
   sectionTitleWithArrow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   horizontalScroll: { paddingHorizontal: 16, paddingVertical: 12 },
-  recommendedCard: { width: 240, marginRight: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fff', overflow: 'hidden' },
-  recommendedImage: { width: '100%', height: 140, backgroundColor: '#f1f5f9', position: 'relative' },
+  recommendedCard: { width: 240, marginRight: 12, borderRadius: 8, borderWidth: 1, borderColor: COLORS.gray300, backgroundColor: COLORS.white, overflow: 'hidden' },
+  recommendedImage: { width: '100%', height: 140, backgroundColor: COLORS.gray200, position: 'relative' },
   recommendedContent: { padding: 10 },
-  recommendedTitle: { fontSize: 13, fontWeight: '700', color: '#1f2937', marginBottom: 4 },
-  recommendedSubtitle: { fontSize: 11, color: '#6b7280', marginBottom: 8 },
-  recommendedPrice: { fontSize: 15, fontWeight: '700', color: '#1085a8ff', marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  sellerSection: { backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginBottom: 12 },
+  recommendedTitle: { fontSize: 13, fontWeight: '700', color: COLORS.gray700, marginBottom: 4 },
+  recommendedSubtitle: { fontSize: 11, color: COLORS.gray500, marginBottom: 8 },
+  recommendedPrice: { fontSize: 15, fontWeight: '700', color: COLORS.primaryGreen, marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: COLORS.gray200 },
+  sellerSection: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray300, marginBottom: 12 },
   sellerCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   sellerInfo: { flexDirection: 'row', flex: 1, gap: 12 },
-  sellerAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#1f2937', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  sellerAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.darkTeal1, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   sellerAvatarImage: { width: '100%', height: '100%' },
-  sellerAvatarText: { fontSize: 18, color: '#ffffff', fontWeight: '700' },
+  sellerAvatarText: { fontSize: 18, color: COLORS.white, fontWeight: '700' },
   sellerDetails: { flex: 1 },
-  sellerName: { fontSize: 13, fontWeight: '700', color: '#1f2937', marginBottom: 4 },
+  sellerName: { fontSize: 13, fontWeight: '700', color: COLORS.gray700, marginBottom: 4 },
   sellerRating: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
   star: { fontSize: 12, color: '#f59e0b' },
-  ratingText: { fontSize: 11, color: '#6b7280' },
-  sellerMeta: { fontSize: 10, color: '#6b7280', lineHeight: 14 },
+  ratingText: { fontSize: 11, color: COLORS.gray500 },
+  sellerMeta: { fontSize: 10, color: COLORS.gray500, lineHeight: 14 },
   profileArrow: { justifyContent: 'center', alignItems: 'center', paddingLeft: 12 },
-  arrowText: { fontSize: 16, color: '#9ca3af', fontWeight: 'bold' },
-  infoSection: { backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginBottom: 12 },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  arrowText: { fontSize: 16, color: COLORS.gray400, fontWeight: 'bold' },
+  infoSection: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray300, marginBottom: 12 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray200 },
   infoRowLast: { borderBottomWidth: 0 },
-  infoLabel: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
-  infoValue: { fontSize: 12, color: '#1f2937', fontWeight: '700' },
-  descriptionSection: { backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginBottom: 12 },
-  descriptionText: { fontSize: 13, color: '#4b5563', lineHeight: 20 },
-  bottomButtons: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 5 },
-  phoneButton: { flex: 1, paddingVertical: 14, borderWidth: 2, borderColor: '#1085a8ff', borderRadius: 8, alignItems: 'center' },
-  phoneButtonText: { fontSize: 14, color: '#1085a8ff', fontWeight: '700' },
-  messageButton: { flex: 1, paddingVertical: 14, backgroundColor: '#1085a8ff', borderRadius: 8, alignItems: 'center' },
-  messageButtonText: { fontSize: 14, color: '#ffffff', fontWeight: '700' },
+  infoLabel: { fontSize: 12, color: COLORS.gray500, fontWeight: '500' },
+  infoValue: { fontSize: 12, color: COLORS.gray700, fontWeight: '700' },
+  descriptionSection: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray300, marginBottom: 12 },
+  descriptionText: { fontSize: 13, color: COLORS.gray500, lineHeight: 20 },
+  bottomButtons: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.gray300, shadowColor: COLORS.black, shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 5 },
+  phoneButton: { flex: 1, paddingVertical: 14, borderWidth: 2, borderColor: COLORS.darkTeal1, borderRadius: 8, alignItems: 'center' },
+  phoneButtonText: { fontSize: 14, color: COLORS.darkTeal1, fontWeight: '700' },
+  messageButton: { flex: 1, paddingVertical: 14, backgroundColor: COLORS.darkTeal1, borderRadius: 8, alignItems: 'center' },
+  messageButtonText: { fontSize: 14, color: COLORS.white, fontWeight: '700' },
   
-  // Delete Modal Styles (matching profile disconnect modal)
+  // Delete Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center' },
-  deleteModalContent: { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '80%', alignItems: 'center' },
-  deleteTitle: { fontSize: 18, fontWeight: '700', color: '#1f2937', marginBottom: 8, textAlign: 'center' },
-  deleteMessage: { fontSize: 14, color: '#64748b', textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  deleteModalContent: { backgroundColor: COLORS.white, borderRadius: 20, padding: 24, width: '80%', alignItems: 'center' },
+  deleteTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray700, marginBottom: 8, textAlign: 'center' },
+  deleteMessage: { fontSize: 14, color: COLORS.gray500, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
   deleteButtonContainer: { flexDirection: 'row', gap: 12, width: '100%' },
   deleteModalButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  cancelDeleteButton: { backgroundColor: '#f1f5f9' },
+  cancelDeleteButton: { backgroundColor: COLORS.gray200 },
   confirmDeleteButton: { backgroundColor: '#ef4444' },
-  cancelDeleteText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
-  confirmDeleteText: { fontSize: 14, fontWeight: '600', color: '#fff' },
+  cancelDeleteText: { fontSize: 14, fontWeight: '600', color: COLORS.gray500 },
+  confirmDeleteText: { fontSize: 14, fontWeight: '600', color: COLORS.white },
 });

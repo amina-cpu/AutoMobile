@@ -20,6 +20,25 @@ WebBrowser.maybeCompleteAuthSession();
 
 const { height } = Dimensions.get('window');
 
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',
+  darkTeal2: '#064C53',
+  primaryGreen: '#41B975',
+  darkGreen: '#268865',
+  white: '#FFFFFF',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray500: '#64748b',
+  gray600: '#6b7280',
+  gray700: '#1f2937',
+  red: '#ef4444',
+  lightRed: '#fee2e2',
+};
+
 const redirectUri = AuthSession.makeRedirectUri({
   scheme: 'automobile',
   path: 'auth/callback',
@@ -278,7 +297,6 @@ export default function AuthScreen() {
         const params = new URLSearchParams(urlParts);
         console.log('📋 [AuthScreen] Available params:', Array.from(params.keys()));
         
-        // Check if we got an authorization code (PKCE flow)
         const code = params.get('code');
         const error_description = params.get('error_description');
         const error_code = params.get('error');
@@ -293,7 +311,6 @@ export default function AuthScreen() {
         if (code) {
           console.log('🔐 [AuthScreen] Got authorization code, exchanging for session...');
           
-          // Exchange code for session using Supabase
           const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
 
           if (sessionError) {
@@ -314,7 +331,6 @@ export default function AuthScreen() {
           const newUser = sessionData.session.user;
           console.log('✅ [AuthScreen] User authenticated:', newUser.email);
 
-          // Check if profile exists
           try {
             const { data: existingProfile, error: checkError } = await supabase
               .from('users')
@@ -345,7 +361,6 @@ export default function AuthScreen() {
           console.log('🎉 [AuthScreen] Google authentication complete!');
           
         } else {
-          // Fallback: try to get tokens directly (legacy flow)
           const access_token = params.get('access_token');
           const refresh_token = params.get('refresh_token');
 
@@ -377,7 +392,6 @@ export default function AuthScreen() {
 
             console.log('✅ [AuthScreen] User authenticated:', newUser.email);
 
-            // Check/create profile...
             try {
               const { data: existingProfile } = await supabase
                 .from('users')
@@ -441,7 +455,7 @@ export default function AuthScreen() {
               <Text style={styles.successTitle}>Confirmez votre email</Text>
               <Text style={styles.successMessage}>
                 Un email de confirmation a été envoyé à {'\n'}
-                <Text style={{ fontWeight: 'bold', color: '#1085a8ff' }}>{email}</Text>
+                <Text style={{ fontWeight: 'bold', color: COLORS.darkTeal1 }}>{email}</Text>
                 {'\n\n'}
                 Cliquez sur le lien dans l'email pour activer votre compte.
               </Text>
@@ -477,7 +491,7 @@ export default function AuthScreen() {
           <View style={styles.header}>
             <View style={styles.headerContent}>
               <Text style={styles.greeting}>Bonjour!</Text>
-              <Text style={styles.subtitle}>Bienvenue sur Automobile</Text>
+              <Text style={styles.subtitle}>Bienvenue sur Vcar</Text>
             </View>
           </View>
 
@@ -508,7 +522,7 @@ export default function AuthScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Email"
-                placeholderTextColor="#b0b0b0"
+                placeholderTextColor={COLORS.gray400}
                 value={email}
                 onChangeText={setEmail}
                 editable={!loading}
@@ -521,7 +535,7 @@ export default function AuthScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Mot de passe"
-                placeholderTextColor="#b0b0b0"
+                placeholderTextColor={COLORS.gray400}
                 value={password}
                 onChangeText={setPassword}
                 editable={!loading}
@@ -536,7 +550,7 @@ export default function AuthScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="Confirmer le mot de passe"
-                    placeholderTextColor="#b0b0b0"
+                    placeholderTextColor={COLORS.gray400}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     editable={!loading}
@@ -549,7 +563,7 @@ export default function AuthScreen() {
                   <TextInput
                     style={styles.input}
                     placeholder="Téléphone (optionnel)"
-                    placeholderTextColor="#b0b0b0"
+                    placeholderTextColor={COLORS.gray400}
                     value={phone}
                     onChangeText={setPhone}
                     editable={!loading}
@@ -571,7 +585,7 @@ export default function AuthScreen() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
                 <Text style={styles.mainButtonText}>
                   {isSignUp ? 'S\'inscrire' : 'Se connecter'}
@@ -599,7 +613,7 @@ export default function AuthScreen() {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color="#1a7f8e" size="small" />
+                  <ActivityIndicator color={COLORS.darkTeal1} size="small" />
                 ) : (
                   <Text style={styles.googleIcon}>G</Text>
                 )}
@@ -631,42 +645,42 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a7f8e' },
+  container: { flex: 1, backgroundColor: COLORS.darkTeal1 },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1 },
-  header: { height: height * 0.35, backgroundColor: '#1085a8ff', justifyContent: 'center', paddingHorizontal: 30, paddingTop: 40 },
+  header: { height: height * 0.35, backgroundColor: COLORS.darkTeal1, justifyContent: 'center', paddingHorizontal: 30, paddingTop: 40 },
   headerContent: { marginTop: 20 },
-  greeting: { fontSize: 48, fontWeight: 'bold', color: '#ffffff', marginBottom: 8 },
-  subtitle: { fontSize: 18, color: '#ffffff', opacity: 0.9 },
-  formCard: { flex: 1, backgroundColor: '#ffffff', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 30, paddingTop: 40, paddingBottom: 30, marginTop: -20 },
+  greeting: { fontSize: 48, fontWeight: 'bold', color: COLORS.white, marginBottom: 8 },
+  subtitle: { fontSize: 18, color: COLORS.white, opacity: 0.9 },
+  formCard: { flex: 1, backgroundColor: COLORS.white, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 30, paddingTop: 40, paddingBottom: 30, marginTop: -20 },
   backButton: { marginBottom: 20 },
-  backButtonText: { fontSize: 14, color: '#1085a8ff', fontWeight: '600' },
-  formTitle: { fontSize: 32, fontWeight: 'bold', color: '#1085a8ff', marginBottom: 30 },
-  errorContainer: { backgroundColor: '#fee2e2', borderRadius: 8, padding: 12, marginBottom: 16, borderLeftWidth: 4, borderLeftColor: '#dc2626' },
-  errorText: { color: '#dc2626', fontSize: 14, fontWeight: '600' },
+  backButtonText: { fontSize: 14, color: COLORS.darkTeal1, fontWeight: '600' },
+  formTitle: { fontSize: 32, fontWeight: 'bold', color: COLORS.darkTeal1, marginBottom: 30 },
+  errorContainer: { backgroundColor: COLORS.lightRed, borderRadius: 8, padding: 12, marginBottom: 16, borderLeftWidth: 4, borderLeftColor: COLORS.red },
+  errorText: { color: COLORS.red, fontSize: 14, fontWeight: '600' },
   successContainer: { alignItems: 'center', paddingVertical: 40 },
   successIcon: { fontSize: 80, marginBottom: 20 },
-  successTitle: { fontSize: 24, fontWeight: 'bold', color: '#1085a8ff', marginBottom: 16, textAlign: 'center' },
-  successMessage: { fontSize: 16, color: '#6b7280', textAlign: 'center', marginBottom: 32, lineHeight: 24, paddingHorizontal: 20 },
-  backToLoginButton: { backgroundColor: '#1085a8ff', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },
-  backToLoginButtonText: { fontSize: 16, fontWeight: 'bold', color: '#ffffff' },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, height: 56 },
+  successTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.darkTeal1, marginBottom: 16, textAlign: 'center' },
+  successMessage: { fontSize: 16, color: COLORS.gray600, textAlign: 'center', marginBottom: 32, lineHeight: 24, paddingHorizontal: 20 },
+  backToLoginButton: { backgroundColor: COLORS.darkTeal1, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },
+  backToLoginButtonText: { fontSize: 16, fontWeight: 'bold', color: COLORS.white },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.lightGray, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, height: 56 },
   inputIcon: { fontSize: 20, marginRight: 12 },
-  input: { flex: 1, fontSize: 16, color: '#1f2937' },
+  input: { flex: 1, fontSize: 16, color: COLORS.gray700 },
   forgotPassword: { alignSelf: 'flex-end', marginBottom: 24, marginTop: -8 },
-  forgotPasswordText: { fontSize: 14, color: '#1085a8ff', fontWeight: '600' },
-  mainButton: { backgroundColor: '#1085a8ff', borderRadius: 12, height: 56, justifyContent: 'center', alignItems: 'center', marginBottom: 24, shadowColor: '#1a7f8e', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  forgotPasswordText: { fontSize: 14, color: COLORS.darkTeal1, fontWeight: '600' },
+  mainButton: { backgroundColor: COLORS.darkTeal1, borderRadius: 12, height: 56, justifyContent: 'center', alignItems: 'center', marginBottom: 24, shadowColor: COLORS.darkTeal2, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   mainButtonDisabled: { opacity: 0.6 },
-  mainButtonText: { fontSize: 18, fontWeight: 'bold', color: '#ffffff' },
+  mainButtonText: { fontSize: 18, fontWeight: 'bold', color: COLORS.white },
   dividerContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e5e5' },
-  dividerText: { fontSize: 14, color: '#9ca3af', marginHorizontal: 16 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.gray300 },
+  dividerText: { fontSize: 14, color: COLORS.gray500, marginHorizontal: 16 },
   socialButtons: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 24 },
-  socialButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e5e5e5' },
-  googleButton: { backgroundColor: '#fff', borderColor: '#1085a8ff', borderWidth: 2 },
-  socialIcon: { fontSize: 24, fontWeight: 'bold', color: '#1a7f8e' },
-  googleIcon: { fontSize: 26, fontWeight: 'bold', color: '#1085a8ff' },
+  socialButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.lightGray, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.gray300 },
+  googleButton: { backgroundColor: COLORS.white, borderColor: COLORS.darkTeal1, borderWidth: 2 },
+  socialIcon: { fontSize: 24, fontWeight: 'bold', color: COLORS.darkTeal1 },
+  googleIcon: { fontSize: 26, fontWeight: 'bold', color: COLORS.darkTeal1 },
   switchContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
-  switchText: { fontSize: 14, color: '#6b7280' },
-  switchLink: { fontSize: 14, color: '#1085a8ff', fontWeight: 'bold' },
+  switchText: { fontSize: 14, color: COLORS.gray600 },
+  switchLink: { fontSize: 14, color: COLORS.darkTeal1, fontWeight: 'bold' },
 });

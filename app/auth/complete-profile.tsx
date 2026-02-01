@@ -18,6 +18,23 @@ import { supabase } from '../src/config/supabase';
 
 const { height } = Dimensions.get('window');
 
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',
+  darkTeal2: '#064C53',
+  primaryGreen: '#41B975',
+  white: '#FFFFFF',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray600: '#6b7280',
+  gray700: '#1f2937',
+  lightBlue: '#e0f2f7',
+  darkBlue: '#0d6978',
+};
+
 export default function CompleteProfileScreen({ onComplete }) {
   const { alertConfig, showSuccess, showError, dismiss } = useAlert();
   const [loading, setLoading] = useState(false);
@@ -40,7 +57,6 @@ export default function CompleteProfileScreen({ onComplete }) {
       return;
     }
 
-    // If seller, require garage info
     if (accountType === 'seller') {
       if (!siretNumber.trim()) {
         showError('Erreur', 'Numéro de SIRET requis pour les vendeurs');
@@ -71,7 +87,6 @@ export default function CompleteProfileScreen({ onComplete }) {
 
       console.log('💾 [CompleteProfile] Updating user:', user.id);
 
-      // Build update object based on account type
       const updateData = {
         full_name: fullName.trim(),
         phone: phone.trim() || null,
@@ -79,21 +94,18 @@ export default function CompleteProfileScreen({ onComplete }) {
         updated_at: new Date().toISOString(),
       };
 
-      // Add seller-specific fields
       if (accountType === 'seller') {
         updateData.siret = siretNumber.trim();
         updateData.address = address.trim();
         updateData.garage_name = garageName.trim();
       }
 
-      // Add email if provided
       if (email.trim()) {
         updateData.email = email.trim();
       }
 
       console.log('📝 [CompleteProfile] Update data:', updateData);
 
-      // Update the profile using Supabase client
       const { data, error } = await supabase
         .from('users')
         .update(updateData)
@@ -111,7 +123,6 @@ export default function CompleteProfileScreen({ onComplete }) {
       
       showSuccess('Profil complété', 'Votre profil a été créé avec succès!');
       
-      // Call the onComplete callback to trigger re-check in RootLayout
       if (onComplete) {
         console.log('🔄 [CompleteProfile] Calling onComplete callback');
         await onComplete();
@@ -137,7 +148,6 @@ export default function CompleteProfileScreen({ onComplete }) {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          {/* Header Section */}
           <View style={styles.header}>
             <View style={styles.headerContent}>
               <Text style={styles.greeting}>Bonjour!</Text>
@@ -145,17 +155,15 @@ export default function CompleteProfileScreen({ onComplete }) {
             </View>
           </View>
 
-          {/* Form Card */}
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>Vos Informations</Text>
 
-            {/* Full Name Input */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputIcon}>👤</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Nom Prénom"
-                placeholderTextColor="#b0b0b0"
+                placeholderTextColor={COLORS.gray400}
                 value={fullName}
                 onChangeText={setFullName}
                 editable={!loading}
@@ -163,13 +171,12 @@ export default function CompleteProfileScreen({ onComplete }) {
               />
             </View>
 
-            {/* Phone Input */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputIcon}>📱</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Numéro de Téléphone (Optionnel)"
-                placeholderTextColor="#b0b0b0"
+                placeholderTextColor={COLORS.gray400}
                 value={phone}
                 onChangeText={setPhone}
                 editable={!loading}
@@ -177,13 +184,12 @@ export default function CompleteProfileScreen({ onComplete }) {
               />
             </View>
 
-            {/* Email Input */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputIcon}>📧</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Adresse Email (Optionnel)"
-                placeholderTextColor="#b0b0b0"
+                placeholderTextColor={COLORS.gray400}
                 value={email}
                 onChangeText={setEmail}
                 editable={!loading}
@@ -192,7 +198,6 @@ export default function CompleteProfileScreen({ onComplete }) {
               />
             </View>
 
-            {/* Account Type Selection */}
             <View style={styles.accountTypeSection}>
               <Text style={styles.accountTypeLabel}>Je suis:</Text>
 
@@ -265,18 +270,16 @@ export default function CompleteProfileScreen({ onComplete }) {
               </TouchableOpacity>
             </View>
 
-            {/* Seller-Specific Fields */}
             {accountType === 'seller' && (
               <View style={styles.sellerSection}>
                 <Text style={styles.sellerSectionTitle}>Informations du Garage</Text>
 
-                {/* Garage Name Input */}
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputIcon}>🏢</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Nom du Garage"
-                    placeholderTextColor="#b0b0b0"
+                    placeholderTextColor={COLORS.gray400}
                     value={garageName}
                     onChangeText={setGarageName}
                     editable={!loading}
@@ -284,13 +287,12 @@ export default function CompleteProfileScreen({ onComplete }) {
                   />
                 </View>
 
-                {/* SIRET Number Input */}
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputIcon}>🔢</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Numéro de SIRET"
-                    placeholderTextColor="#b0b0b0"
+                    placeholderTextColor={COLORS.gray400}
                     value={siretNumber}
                     onChangeText={setSiretNumber}
                     editable={!loading}
@@ -298,13 +300,12 @@ export default function CompleteProfileScreen({ onComplete }) {
                   />
                 </View>
 
-                {/* Address Input */}
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputIcon}>📍</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Adresse du Garage"
-                    placeholderTextColor="#b0b0b0"
+                    placeholderTextColor={COLORS.gray400}
                     value={address}
                     onChangeText={setAddress}
                     editable={!loading}
@@ -314,14 +315,13 @@ export default function CompleteProfileScreen({ onComplete }) {
               </View>
             )}
 
-            {/* Continue Button */}
             <TouchableOpacity
               style={[styles.continueButton, loading && styles.continueButtonDisabled]}
               onPress={handleCompleteProfile}
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
                 <Text style={styles.continueButtonText}>Continuer</Text>
               )}
@@ -343,160 +343,33 @@ export default function CompleteProfileScreen({ onComplete }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1085a8ff',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  header: {
-    height: height * 0.3,
-    backgroundColor: '#1085a8ff',
-    justifyContent: 'center',
-    paddingHorizontal: 30,
-    paddingTop: 40,
-  },
-  headerContent: {
-    marginTop: 20,
-  },
-  greeting: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#ffffff',
-    opacity: 0.9,
-  },
-  formCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 30,
-    paddingTop: 40,
-    paddingBottom: 30,
-    marginTop: -20,
-  },
-  formTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1085a8ff',
-    marginBottom: 30,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    height: 56,
-  },
-  inputIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1f2937',
-  },
-  accountTypeSection: {
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  accountTypeLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 16,
-  },
-  accountTypeButton: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  accountTypeButtonActive: {
-    backgroundColor: '#e0f2f7',
-    borderColor: '#1085a8ff',
-  },
-  accountTypeContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  accountTypeIcon: {
-    fontSize: 32,
-    marginRight: 16,
-  },
-  accountTypeTextContainer: {
-    flex: 1,
-  },
-  accountTypeTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  accountTypeTextActive: {
-    color: '#1085a8ff',
-  },
-  accountTypeDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  accountTypeDescriptionActive: {
-    color: '#0d6978',
-  },
-  checkmark: {
-    fontSize: 24,
-    color: '#1085a8ff',
-    fontWeight: 'bold',
-  },
-  sellerSection: {
-    backgroundColor: '#f0f9fc',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    borderLeftWidth: 4,
-    borderLeftColor: '#1085a8ff',
-  },
-  sellerSectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1085a8ff',
-    marginBottom: 16,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  continueButton: {
-    backgroundColor: '#1085a8ff',
-    borderRadius: 12,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#1a7f8e',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  continueButtonDisabled: {
-    opacity: 0.6,
-  },
-  continueButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
+  container: { flex: 1, backgroundColor: COLORS.darkTeal1 },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+  header: { height: height * 0.3, backgroundColor: COLORS.darkTeal1, justifyContent: 'center', paddingHorizontal: 30, paddingTop: 40 },
+  headerContent: { marginTop: 20 },
+  greeting: { fontSize: 48, fontWeight: 'bold', color: COLORS.white, marginBottom: 8 },
+  subtitle: { fontSize: 16, color: COLORS.white, opacity: 0.9 },
+  formCard: { flex: 1, backgroundColor: COLORS.white, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 30, paddingTop: 40, paddingBottom: 30, marginTop: -20 },
+  formTitle: { fontSize: 28, fontWeight: 'bold', color: COLORS.darkTeal1, marginBottom: 30 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.lightGray, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, height: 56 },
+  inputIcon: { fontSize: 20, marginRight: 12 },
+  input: { flex: 1, fontSize: 16, color: COLORS.gray700 },
+  accountTypeSection: { marginTop: 8, marginBottom: 24 },
+  accountTypeLabel: { fontSize: 16, fontWeight: '600', color: COLORS.gray700, marginBottom: 16 },
+  accountTypeButton: { backgroundColor: COLORS.lightGray, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 2, borderColor: 'transparent' },
+  accountTypeButtonActive: { backgroundColor: COLORS.lightBlue, borderColor: COLORS.darkTeal1 },
+  accountTypeContent: { flexDirection: 'row', alignItems: 'center' },
+  accountTypeIcon: { fontSize: 32, marginRight: 16 },
+  accountTypeTextContainer: { flex: 1 },
+  accountTypeTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray700, marginBottom: 4 },
+  accountTypeTextActive: { color: COLORS.darkTeal1 },
+  accountTypeDescription: { fontSize: 14, color: COLORS.gray600 },
+  accountTypeDescriptionActive: { color: COLORS.darkBlue },
+  checkmark: { fontSize: 24, color: COLORS.darkTeal1, fontWeight: 'bold' },
+  sellerSection: { backgroundColor: '#f0f9fc', borderRadius: 12, padding: 16, marginBottom: 24, borderLeftWidth: 4, borderLeftColor: COLORS.darkTeal1 },
+  sellerSectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.darkTeal1, marginBottom: 16, textTransform: 'uppercase', letterSpacing: 0.5 },
+  continueButton: { backgroundColor: COLORS.darkTeal1, borderRadius: 12, height: 56, justifyContent: 'center', alignItems: 'center', marginTop: 8, shadowColor: COLORS.darkTeal2, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  continueButtonDisabled: { opacity: 0.6 },
+  continueButtonText: { fontSize: 18, fontWeight: 'bold', color: COLORS.white },
 });

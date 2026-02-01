@@ -20,6 +20,22 @@ import { supabase } from '../src/config/supabase';
 
 const { width } = Dimensions.get('window');
 
+// COLORS - Complete Dark Teal & Green Theme
+const COLORS = {
+  // Dark Teals (Main shades)
+  darkTeal1: '#05696F',      // RGB(5, 59, 67) - Darkest
+  darkTeal2: '#064C53',      // RGB(6, 76, 83) - Dark
+  darkTeal3: '#05696F',      // RGB(5, 105, 111) - Medium
+  
+  // Greens (Accents)
+  primaryGreen: '#41B975',   // RGB(65, 185, 117) - Primary accent
+  darkGreen: '#268865',      // RGB(38, 136, 101) - Secondary accent
+  
+  // Neutrals
+  white: '#FFFFFF',
+  black: '#000000',
+};
+
 export default function HomeScreen() {
   const navigation = useNavigation();
   const router = useRouter();
@@ -34,7 +50,7 @@ export default function HomeScreen() {
   const [userName, setUserName] = useState('User');
   const [userImage, setUserImage] = useState(null);
 
-  // Helper function to get image URL - SAME AS PRODUCT DETAIL
+  // Helper function to get image URL
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     
@@ -111,7 +127,6 @@ export default function HomeScreen() {
 
       console.log('✅ Utilisateur authentifié:', user.id);
 
-      // Use Supabase client instead of fetch
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -161,7 +176,6 @@ export default function HomeScreen() {
 
       console.log('🚗 Chargement des voitures...');
 
-      // Use Supabase client instead of fetch
       const { data, error } = await supabase
         .from('cars')
         .select(`
@@ -181,7 +195,6 @@ export default function HomeScreen() {
       if (Array.isArray(data) && data.length > 0) {
         console.log('✅ Chargement de', data.length, 'voitures');
         
-        // Process images with proper URLs
         const processedCars = data.map(car => ({
           ...car,
           car_images: car.car_images ? car.car_images.map(img => ({
@@ -353,14 +366,14 @@ export default function HomeScreen() {
               disabled={currentCarIndex === 0}
               style={{ opacity: currentCarIndex === 0 ? 0.3 : 1 }}
             >
-              <Text style={{ fontSize: 28, color: '#1085a8ff', fontWeight: 'bold' }}>‹</Text>
+              <Text style={{ fontSize: 28, color: COLORS.primaryGreen, fontWeight: 'bold' }}>‹</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               onPress={handleNextCar}
               disabled={currentCarIndex === latestCars.length - 1}
               style={{ opacity: currentCarIndex === latestCars.length - 1 ? 0.3 : 1, marginTop: 8 }}
             >
-              <Text style={{ fontSize: 28, color: '#1085a8ff', fontWeight: 'bold' }}>›</Text>
+              <Text style={{ fontSize: 28, color: COLORS.primaryGreen, fontWeight: 'bold' }}>›</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -370,7 +383,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1085a8ff" translucent={true} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent={true} />
       
       <View style={styles.headerContainer}>
         <Text style={styles.locationLabel}></Text>
@@ -425,7 +438,9 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Hero Section with darkTeal2 & darkTeal3 gradient effect */}
         <View style={styles.heroSection}>
+          <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: COLORS.darkTeal2 }} />
           <Image 
             source={require('../../assets/images/last.png')}
             style={styles.heroImage}
@@ -472,7 +487,7 @@ export default function HomeScreen() {
                 Nos dernières voitures
               </Text>
               <TouchableOpacity onPress={() => navigation.navigate('explore')}>
-                <Text style={{ fontSize: 28, color: '#1085a8ff', fontWeight: 'bold' }}>»</Text>
+                <Text style={{ fontSize: 28, color: COLORS.primaryGreen, fontWeight: 'bold' }}>»</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -488,7 +503,7 @@ export default function HomeScreen() {
           
           {loading ? (
             <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-              <ActivityIndicator size="large" color="#3b82f6" />
+              <ActivityIndicator size="large" color={COLORS.primaryGreen} />
               <Text style={{ marginTop: 12, color: '#666', fontSize: 14 }}>Chargement des voitures...</Text>
             </View>
           ) : (
@@ -502,11 +517,11 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  headerContainer: { backgroundColor: '#1085a8ff', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 0, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  headerContainer: { backgroundColor: COLORS.darkTeal1, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 0, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   locationLabel: { fontSize: 13, color: 'rgba(255, 255, 255, 0.8)' },
   locationRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   locationTextRow: { flexDirection: 'row', alignItems: 'center' },
-  locationText: { fontSize: 17, fontWeight: '600', color: '#fff' },
+  locationText: { fontSize: 17, fontWeight: '600', color: COLORS.white },
   notificationButton: { 
     width: 40, 
     height: 40, 
@@ -516,14 +531,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     marginTop: 20 
   },
-  greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom: 20 },
+  greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   greetingContainer: { flex: 1 },
-  greetingText: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
+  greetingText: { fontSize: 20, fontWeight: 'bold', color: COLORS.white },
   notificationIconContainer: { position: 'relative' },
   bellIcon: { width: 20, height: 22 },
-  bellTop: { width: 16, height: 16, borderWidth: 2, borderColor: '#fff', borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomWidth: 0, marginLeft: 2 },
-  bellBottom: { width: 20, height: 4, backgroundColor: '#fff', borderBottomLeftRadius: 2, borderBottomRightRadius: 2, marginTop: -1 },
-  bellClapper: { width: 4, height: 4, backgroundColor: '#fff', borderRadius: 2, position: 'absolute', bottom: 2, left: 8 },
+  bellTop: { width: 16, height: 16, borderWidth: 2, borderColor: COLORS.white, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomWidth: 0, marginLeft: 2 },
+  bellBottom: { width: 20, height: 4, backgroundColor: COLORS.white, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, marginTop: -1 },
+  bellClapper: { width: 4, height: 4, backgroundColor: COLORS.white, borderRadius: 2, position: 'absolute', bottom: 2, left: 8 },
   notificationDot: {
     position: 'absolute',
     top: -2,
@@ -531,47 +546,47 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ef4444',
+    backgroundColor: COLORS.primaryGreen,
   },
-  carCard: { backgroundColor: '#fff', paddingHorizontal: 10, marginHorizontal: 10, marginBottom: 20, paddingTop: 30, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3, borderWidth: 0 },
+  carCard: { backgroundColor: COLORS.white, paddingHorizontal: 10, marginHorizontal: 10, marginBottom: 20, paddingTop: 30, shadowColor: COLORS.black, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3, borderWidth: 0 },
   carImageContainer: { position: 'relative', height: 230, backgroundColor: '#f9fafb', justifyContent: 'center', alignItems: 'center' },
   carImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   carImagePlaceholder: { fontSize: 72 },
-  dealBadge: { position: 'absolute', top: 160, left: 12, backgroundColor: '#1085a8ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  dealBadgeText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  priceTag: { position: 'absolute', top: 170, right: 12, backgroundColor: '#f0f4f8', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 2, borderColor: '#1085a8ff' },
-  priceTagText: { fontSize: 18, fontWeight: '800', color: '#1085a8ff' },
-  likeButton: { position: 'absolute', top: 12, right: 12, backgroundColor: '#fff', borderRadius: 24, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
+  dealBadge: { position: 'absolute', top: 160, left: 12, backgroundColor: COLORS.darkTeal1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dealBadgeText: { fontSize: 13, fontWeight: '700', color: COLORS.white },
+  priceTag: { position: 'absolute', top: 170, right: 12, backgroundColor: COLORS.white, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 2, borderColor: COLORS.primaryGreen },
+  priceTagText: { fontSize: 18, fontWeight: '800', color: COLORS.primaryGreen },
+  likeButton: { position: 'absolute', top: 12, right: 12, backgroundColor: COLORS.white, borderRadius: 24, width: 40, height: 40, justifyContent: 'center', alignItems: 'center', shadowColor: COLORS.black, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
   likeIcon: { fontSize: 20 },
   carInfo: { padding: 16 },
-  carName: { fontSize: 18, fontWeight: '700', color: '#1f2937', marginBottom: 12 },
+  carName: { fontSize: 18, fontWeight: '700', color: COLORS.darkTeal1, marginBottom: 12 },
   carDetailsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  specItem: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f3f4f6', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-  specText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+  specItem: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.darkTeal1 + '15', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, borderLeftWidth: 3, borderLeftColor: COLORS.darkGreen },
+  specText: { fontSize: 12, color: COLORS.darkTeal1, fontWeight: '600' },
   homePadding: { paddingHorizontal: 24, paddingTop: 24 },
-  mainTitle: { fontSize: 30, fontWeight: 'bold', color: '#1f2937', textAlign: 'center', marginTop: 20, marginBottom: 20 },
+  mainTitle: { fontSize: 30, fontWeight: 'bold', color: COLORS.darkTeal1, textAlign: 'center', marginTop: 20, marginBottom: 20 },
   ctaButtonContainer: { marginBottom: 10, overflow: 'hidden' },
-  ctaButton: { backgroundColor: '#1085a8ff', borderRadius: 24, paddingVertical: 16, paddingHorizontal: 5, flexDirection: 'row', marginTop: 20, marginBottom: 20, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  ctaText: { fontSize: 18, fontWeight: '600', color: '#FFF' },
-  heroSection: { marginHorizontal: 24, marginTop: 12, marginBottom: 10, borderRadius: 20, borderWidth: 3, borderColor: '#1085a8ff', overflow: 'hidden', backgroundColor: '#ffff', position: 'relative', height: 250 },
-  heroContent: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, padding: 24, justifyContent: 'center' },
-  heroImage: { position: 'absolute', right: 0, bottom: 0, width: '50%', height: '100%', resizeMode: 'contain' },
-  heroTitle: { fontSize: 20, fontWeight: 'bold', color: '#1f2937', marginBottom: 8, maxWidth: '50%' },
-  heroSubtitle: { fontSize: 14, color: '#475569', marginBottom: 20, maxWidth: '50%' },
-  heroButton: { backgroundColor: '#1085a8ff', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, marginTop: 20, alignSelf: 'flex-start' },
-  heroButtonText: { color: '#ffffff', fontWeight: '700', fontSize: 14 },
+  ctaButton: { backgroundColor: COLORS.darkTeal1, borderRadius: 24, paddingVertical: 16, paddingHorizontal: 5, flexDirection: 'row', marginTop: 20, marginBottom: 20, alignItems: 'center', justifyContent: 'center', shadowColor: COLORS.black, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  ctaText: { fontSize: 18, fontWeight: '600', color: COLORS.white },
+  heroSection: { marginHorizontal: 24, marginTop: 12, marginBottom: 10, borderRadius: 20, borderWidth: 3, borderColor: COLORS.darkTeal3, overflow: 'hidden', position: 'relative', height: 250 },
+  heroContent: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, padding: 24, justifyContent: 'center', zIndex: 10 },
+  heroImage: {  right: 0,marginLeft:190, bottom: 0, width: '50%', height: '100%', resizeMode: 'contain' },
+  heroTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.white, marginBottom: 8, maxWidth: '70%' },
+  heroSubtitle: { fontSize: 14, color: 'rgba(255, 255, 255, 0.9)', marginBottom: 20, maxWidth: '70%' },
+  heroButton: { backgroundColor: COLORS.primaryGreen, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, marginTop: 20, alignSelf: 'flex-start' },
+  heroButtonText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
   categoriesSection: { marginVertical: 32 },
   categoriesTitleContainer: { paddingHorizontal: 24, marginBottom: 30 },
-  categoriesTitle: { fontSize: 28, fontWeight: 'bold', color: '#1f2937', marginBottom: 8 },
+  categoriesTitle: { fontSize: 28, fontWeight: 'bold', color: COLORS.darkTeal1, marginBottom: 8 },
   categoriesSubtitle: { fontSize: 16, color: '#666' },
   categoriesScroll: { paddingLeft: 24, paddingRight: 24 },
-  categoryCard: { backgroundColor: '#fff', borderRadius: 16, paddingVertical: 14, borderWidth: 2, borderColor: '#1085a8ff', paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', marginRight: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, marginBottom: 10, elevation: 2 },
-  categoryName: { fontSize: 14, fontWeight: '600', color: '#1f2937', textAlign: 'center' },
+  categoryCard: { backgroundColor: COLORS.darkTeal3, borderColor:COLORS.darkTeal3 , borderRadius: 16, paddingVertical: 14, borderWidth: 2, borderColor: COLORS.darkTeal2, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', marginRight: 10, shadowColor: COLORS.black, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, marginBottom: 10, elevation: 2 },
+  categoryName: { fontSize: 14, fontWeight: '600', color: '#FFFF', textAlign: 'center' },
   latestCarsSection: { marginVertical: 24, marginBottom: 40, paddingHorizontal: 20 },
   latestCarsSectionTitle: { marginBottom: 24 },
-  latestCarsTitle: { fontSize: 28, fontWeight: 'bold', color: '#1f2937' },
-  errorContainer: { backgroundColor: '#fee2e2', borderRadius: 8, padding: 12, marginVertical: 12, marginHorizontal: 20 },
+  latestCarsTitle: { fontSize: 28, fontWeight: 'bold', color: COLORS.darkTeal1 },
+  errorContainer: { backgroundColor: '#fee2e2', borderRadius: 8, padding: 12, marginVertical: 12, marginHorizontal: 20, borderLeftWidth: 4, borderLeftColor: '#dc2626' },
   errorText: { color: '#dc2626', fontSize: 14, fontWeight: '600' },
-  retryButton: { backgroundColor: '#1085a8ff', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, marginTop: 8, alignSelf: 'flex-start' },
-  retryButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  retryButton: { backgroundColor: COLORS.darkTeal1, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, marginTop: 8, alignSelf: 'flex-start' },
+  retryButtonText: { color: COLORS.white, fontWeight: '600', fontSize: 14 },
 });

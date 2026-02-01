@@ -12,6 +12,7 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -21,6 +22,24 @@ import {
 import { supabase } from './src/config/supabase';
 
 const { width } = Dimensions.get('window');
+
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',      // RGB(5, 59, 67) - Darkest
+  darkTeal2: '#064C53',      // RGB(6, 76, 83) - Dark
+  darkTeal3: '#05696F',      // RGB(5, 105, 111) - Medium
+  primaryGreen: '#41B975',   // RGB(65, 185, 117) - Primary accent
+  darkGreen: '#268865',      // RGB(38, 136, 101) - Secondary accent
+  white: '#FFFFFF',
+  black: '#000000',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray500: '#64748b',
+  gray700: '#1f2937',
+};
 
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
@@ -130,7 +149,7 @@ export default function EditCarScreen() {
   const pickNewImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -214,7 +233,6 @@ export default function EditCarScreen() {
   const deleteImagesFromStorage = async (imageIds, accessToken) => {
     for (const imageId of imageIds) {
       try {
-        // Get the image URL from database
         const { data: imageData } = await supabase
           .from('car_images')
           .select('image_url')
@@ -222,13 +240,11 @@ export default function EditCarScreen() {
           .single();
 
         if (imageData?.image_url) {
-          // Delete from storage
           await supabase.storage
             .from('car-images')
             .remove([imageData.image_url]);
         }
 
-        // Delete from database
         await supabase
           .from('car_images')
           .delete()
@@ -256,7 +272,6 @@ export default function EditCarScreen() {
         return;
       }
 
-      // Update car details
       const { error } = await supabase
         .from('cars')
         .update({
@@ -275,12 +290,10 @@ export default function EditCarScreen() {
 
       if (error) throw error;
 
-      // Delete marked images
       if (imagesToDelete.length > 0) {
         await deleteImagesFromStorage(imagesToDelete, session.access_token);
       }
 
-      // Upload new images
       if (newImages.length > 0) {
         const startOrder = existingImages.length;
         for (let i = 0; i < newImages.length; i++) {
@@ -308,7 +321,9 @@ export default function EditCarScreen() {
   const canAddMore = totalImages < 8;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.fullContainer}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
+      
       <View style={styles.headerContainer}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.headerBackText}>‹</Text>
@@ -317,200 +332,207 @@ export default function EditCarScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.formContainer}>
-            
-            {/* Images Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Photos</Text>
-              <Text style={styles.sectionSubtitle}>
-                {totalImages}/8 photos • Ajoutez jusqu'à 8 photos
-              </Text>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.formContainer}>
+              
+              {/* Images Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Photos</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {totalImages}/8 photos • Ajoutez jusqu'à 8 photos
+                </Text>
 
-              {loadingImages ? (
-                <View style={styles.loadingImages}>
-                  <ActivityIndicator color="#1085a8ff" />
-                </View>
-              ) : (
-                <View style={styles.imagesGrid}>
-                  {/* Existing Images */}
-                  {existingImages.map((image, index) => (
-                    <View key={image.id} style={styles.imageBox}>
-                      <Image source={{ uri: image.displayUrl }} style={styles.imagePreview} />
-                      <View style={styles.imageLabel}>
-                        <Text style={styles.imageLabelText}>Photo {index + 1}</Text>
+                {loadingImages ? (
+                  <View style={styles.loadingImages}>
+                    <ActivityIndicator color={COLORS.darkTeal1} />
+                  </View>
+                ) : (
+                  <View style={styles.imagesGrid}>
+                    {/* Existing Images */}
+                    {existingImages.map((image, index) => (
+                      <View key={image.id} style={styles.imageBox}>
+                        <Image source={{ uri: image.displayUrl }} style={styles.imagePreview} />
+                        <View style={styles.imageLabel}>
+                          <Text style={styles.imageLabelText}>Photo {index + 1}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.removeImageButton}
+                          onPress={() => removeExistingImage(image.id)}
+                        >
+                          <Text style={styles.removeImageText}>×</Text>
+                        </TouchableOpacity>
                       </View>
-                      <TouchableOpacity
-                        style={styles.removeImageButton}
-                        onPress={() => removeExistingImage(image.id)}
-                      >
-                        <Text style={styles.removeImageText}>×</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+                    ))}
 
-                  {/* New Images */}
-                  {newImages.map((image, index) => (
-                    <View key={image.id} style={styles.imageBox}>
-                      <Image source={{ uri: image.uri }} style={styles.imagePreview} />
-                      <View style={[styles.imageLabel, styles.newImageLabel]}>
-                        <Text style={styles.imageLabelText}>Nouvelle</Text>
+                    {/* New Images */}
+                    {newImages.map((image, index) => (
+                      <View key={image.id} style={styles.imageBox}>
+                        <Image source={{ uri: image.uri }} style={styles.imagePreview} />
+                        <View style={[styles.imageLabel, styles.newImageLabel]}>
+                          <Text style={styles.imageLabelText}>Nouvelle</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.removeImageButton}
+                          onPress={() => removeNewImage(image.id)}
+                        >
+                          <Text style={styles.removeImageText}>×</Text>
+                        </TouchableOpacity>
                       </View>
-                      <TouchableOpacity
-                        style={styles.removeImageButton}
-                        onPress={() => removeNewImage(image.id)}
-                      >
-                        <Text style={styles.removeImageText}>×</Text>
+                    ))}
+
+                    {/* Add Image Button */}
+                    {canAddMore && (
+                      <TouchableOpacity style={styles.addImageBox} onPress={pickNewImage}>
+                        <Text style={styles.addImageIcon}>+</Text>
+                        <Text style={styles.addImageText}>Ajouter</Text>
                       </TouchableOpacity>
-                    </View>
-                  ))}
+                    )}
+                  </View>
+                )}
+              </View>
 
-                  {/* Add Image Button */}
-                  {canAddMore && (
-                    <TouchableOpacity style={styles.addImageBox} onPress={pickNewImage}>
-                      <Text style={styles.addImageIcon}>+</Text>
-                      <Text style={styles.addImageText}>Ajouter</Text>
-                    </TouchableOpacity>
-                  )}
+              {/* Car Details Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Détails du véhicule</Text>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Marque <Text style={styles.required}>*</Text></Text>
+                  <TouchableOpacity
+                    style={styles.pickerButton}
+                    onPress={() => openModal('brand', brands)}
+                  >
+                    <Text style={[styles.pickerButtonText, !formData.brand && styles.pickerPlaceholder]}>
+                      {formData.brand || 'Choisissez'}
+                    </Text>
+                    <Text style={styles.pickerArrow}>›</Text>
+                  </TouchableOpacity>
                 </View>
-              )}
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Modèle <Text style={styles.required}>*</Text></Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: A4"
+                    value={formData.model}
+                    onChangeText={(value) => setFormData(prev => ({ ...prev, model: value }))}
+                    editable={!loading}
+                    placeholderTextColor={COLORS.gray400}
+                  />
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Année <Text style={styles.required}>*</Text></Text>
+                  <TouchableOpacity
+                    style={styles.pickerButton}
+                    onPress={() => openModal('year', years)}
+                  >
+                    <Text style={[styles.pickerButtonText, !formData.year && styles.pickerPlaceholder]}>
+                      {formData.year || 'Choisissez'}
+                    </Text>
+                    <Text style={styles.pickerArrow}>›</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Kilométrage <Text style={styles.required}>*</Text></Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: 50000"
+                    value={formData.mileage}
+                    onChangeText={(value) => setFormData(prev => ({ ...prev, mileage: value }))}
+                    keyboardType="number-pad"
+                    editable={!loading}
+                    placeholderTextColor={COLORS.gray400}
+                  />
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Carburant <Text style={styles.required}>*</Text></Text>
+                  <TouchableOpacity
+                    style={styles.pickerButton}
+                    onPress={() => openModal('fuel_type', fuelTypes)}
+                  >
+                    <Text style={[styles.pickerButtonText, !formData.fuel_type && styles.pickerPlaceholder]}>
+                      {formData.fuel_type || 'Choisissez'}
+                    </Text>
+                    <Text style={styles.pickerArrow}>›</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Transmission <Text style={styles.required}>*</Text></Text>
+                  <TouchableOpacity
+                    style={styles.pickerButton}
+                    onPress={() => openModal('transmission', transmissions)}
+                  >
+                    <Text style={[styles.pickerButtonText, !formData.transmission && styles.pickerPlaceholder]}>
+                      {formData.transmission || 'Choisissez'}
+                    </Text>
+                    <Text style={styles.pickerArrow}>›</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Prix € <Text style={styles.required}>*</Text></Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: 15000"
+                    value={formData.price}
+                    onChangeText={(value) => setFormData(prev => ({ ...prev, price: value }))}
+                    keyboardType="number-pad"
+                    editable={!loading}
+                    placeholderTextColor={COLORS.gray400}
+                  />
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Ville</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Paris"
+                    value={formData.city}
+                    onChangeText={(value) => setFormData(prev => ({ ...prev, city: value }))}
+                    editable={!loading}
+                    placeholderTextColor={COLORS.gray400}
+                  />
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Description</Text>
+                  <TextInput
+                    style={[styles.input, styles.descriptionInput]}
+                    placeholder="Décrivez votre véhicule..."
+                    value={formData.description}
+                    onChangeText={(value) => setFormData(prev => ({ ...prev, description: value }))}
+                    multiline
+                    numberOfLines={5}
+                    editable={!loading}
+                    textAlignVertical="top"
+                    placeholderTextColor={COLORS.gray400}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                onPress={handleUpdate}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={COLORS.white} />
+                ) : (
+                  <Text style={styles.submitButtonText}>Mettre à jour</Text>
+                )}
+              </TouchableOpacity>
             </View>
-
-            {/* Car Details Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Détails du véhicule</Text>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Marque <Text style={styles.required}>*</Text></Text>
-                <TouchableOpacity
-                  style={styles.pickerButton}
-                  onPress={() => openModal('brand', brands)}
-                >
-                  <Text style={[styles.pickerButtonText, !formData.brand && styles.pickerPlaceholder]}>
-                    {formData.brand || 'Choisissez'}
-                  </Text>
-                  <Text style={styles.pickerArrow}>›</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Modèle <Text style={styles.required}>*</Text></Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: A4"
-                  value={formData.model}
-                  onChangeText={(value) => setFormData(prev => ({ ...prev, model: value }))}
-                  editable={!loading}
-                />
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Année <Text style={styles.required}>*</Text></Text>
-                <TouchableOpacity
-                  style={styles.pickerButton}
-                  onPress={() => openModal('year', years)}
-                >
-                  <Text style={[styles.pickerButtonText, !formData.year && styles.pickerPlaceholder]}>
-                    {formData.year || 'Choisissez'}
-                  </Text>
-                  <Text style={styles.pickerArrow}>›</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Kilométrage <Text style={styles.required}>*</Text></Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: 50000"
-                  value={formData.mileage}
-                  onChangeText={(value) => setFormData(prev => ({ ...prev, mileage: value }))}
-                  keyboardType="number-pad"
-                  editable={!loading}
-                />
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Carburant <Text style={styles.required}>*</Text></Text>
-                <TouchableOpacity
-                  style={styles.pickerButton}
-                  onPress={() => openModal('fuel_type', fuelTypes)}
-                >
-                  <Text style={[styles.pickerButtonText, !formData.fuel_type && styles.pickerPlaceholder]}>
-                    {formData.fuel_type || 'Choisissez'}
-                  </Text>
-                  <Text style={styles.pickerArrow}>›</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Transmission <Text style={styles.required}>*</Text></Text>
-                <TouchableOpacity
-                  style={styles.pickerButton}
-                  onPress={() => openModal('transmission', transmissions)}
-                >
-                  <Text style={[styles.pickerButtonText, !formData.transmission && styles.pickerPlaceholder]}>
-                    {formData.transmission || 'Choisissez'}
-                  </Text>
-                  <Text style={styles.pickerArrow}>›</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Prix € <Text style={styles.required}>*</Text></Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: 15000"
-                  value={formData.price}
-                  onChangeText={(value) => setFormData(prev => ({ ...prev, price: value }))}
-                  keyboardType="number-pad"
-                  editable={!loading}
-                />
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Ville</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: Paris"
-                  value={formData.city}
-                  onChangeText={(value) => setFormData(prev => ({ ...prev, city: value }))}
-                  editable={!loading}
-                />
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Description</Text>
-                <TextInput
-                  style={[styles.input, styles.descriptionInput]}
-                  placeholder="Décrivez votre véhicule..."
-                  value={formData.description}
-                  onChangeText={(value) => setFormData(prev => ({ ...prev, description: value }))}
-                  multiline
-                  numberOfLines={5}
-                  editable={!loading}
-                  textAlignVertical="top"
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity 
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-              onPress={handleUpdate}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitButtonText}>Mettre à jour</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
 
       <Modal
         visible={modalVisible}
@@ -546,6 +568,7 @@ export default function EditCarScreen() {
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   autoFocus
+                  placeholderTextColor={COLORS.gray400}
                 />
               </View>
             )}
@@ -574,71 +597,57 @@ export default function EditCarScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  headerBackButton: { 
-  width: 40, 
-  height: 40, 
-  borderRadius: 18,              // ← Changed from 20
-  backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-  justifyContent: 'center', 
-  alignItems: 'center' 
-},
-
-headerBackText: { 
-  fontSize: 28,                  // ← Changed from 20
-  color: '#fff', 
-  fontWeight: 'bold',
-  marginBottom: 10               // ← Add this line
-},
-  headerContainer: { backgroundColor: '#1085a8ff', paddingHorizontal: 20, paddingVertical: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fullContainer: { flex: 1, backgroundColor: COLORS.darkTeal1 },
+  container: { flex: 1, backgroundColor: COLORS.lightGray },
+  headerContainer: { backgroundColor: COLORS.darkTeal1, paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
-  backButtonText: { fontSize: 24, color: '#fff', fontWeight: '600' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
+  headerBackText: { fontSize: 24, color: COLORS.white, fontWeight: '600' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.white },
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: 30 },
   formContainer: { paddingHorizontal: 20, paddingTop: 20 },
   section: { marginBottom: 32 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', color: '#1f2937', marginBottom: 8 },
-  sectionSubtitle: { fontSize: 14, color: '#64748b', marginBottom: 16 },
+  sectionTitle: { fontSize: 20, fontWeight: '700', color: COLORS.gray700, marginBottom: 8 },
+  sectionSubtitle: { fontSize: 14, color: COLORS.gray500, marginBottom: 16 },
   loadingImages: { padding: 40, alignItems: 'center' },
   imagesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  imageBox: { width: (width - 52) / 2, aspectRatio: 1, borderRadius: 16, overflow: 'hidden', position: 'relative', backgroundColor: '#fff', borderWidth: 2, borderColor: '#1085a8ff' },
+  imageBox: { width: (width - 52) / 2, aspectRatio: 1, borderRadius: 16, overflow: 'hidden', position: 'relative', backgroundColor: COLORS.white, borderWidth: 2, borderColor: COLORS.darkTeal1 },
   imagePreview: { width: '100%', height: '100%' },
-  imageLabel: { position: 'absolute', top: 12, left: 12, right: 12, backgroundColor: '#1085a8ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  newImageLabel: { backgroundColor: '#22c55e' },
-  imageLabelText: { color: '#ffffff', fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  imageLabel: { position: 'absolute', top: 12, left: 12, right: 12, backgroundColor: COLORS.darkTeal1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  newImageLabel: { backgroundColor: COLORS.primaryGreen },
+  imageLabelText: { color: COLORS.white, fontSize: 12, fontWeight: '700', textAlign: 'center' },
   removeImageButton: { position: 'absolute', top: 12, right: 12, width: 28, height: 28, borderRadius: 14, backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center' },
-  removeImageText: { color: '#ffffff', fontSize: 18, fontWeight: 'bold' },
-  addImageBox: { width: (width - 52) / 2, aspectRatio: 1, borderRadius: 16, borderWidth: 2, borderColor: '#cbd5e1', borderStyle: 'dashed', backgroundColor: '#f8fafc', justifyContent: 'center', alignItems: 'center' },
-  addImageIcon: { fontSize: 48, color: '#94a3b8', marginBottom: 8 },
-  addImageText: { fontSize: 14, fontWeight: '600', color: '#64748b' },
+  removeImageText: { color: COLORS.white, fontSize: 18, fontWeight: 'bold' },
+  addImageBox: { width: (width - 52) / 2, aspectRatio: 1, borderRadius: 16, borderWidth: 2, borderColor: COLORS.gray300, borderStyle: 'dashed', backgroundColor: COLORS.gray100, justifyContent: 'center', alignItems: 'center' },
+  addImageIcon: { fontSize: 48, color: COLORS.gray400, marginBottom: 8 },
+  addImageText: { fontSize: 14, fontWeight: '600', color: COLORS.gray500 },
   fieldContainer: { marginBottom: 20 },
-  fieldLabel: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 12 },
+  fieldLabel: { fontSize: 16, fontWeight: '600', color: COLORS.gray700, marginBottom: 12 },
   required: { color: '#ef4444' },
-  pickerButton: { backgroundColor: '#fff', borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pickerButtonText: { fontSize: 16, color: '#1f2937' },
-  pickerPlaceholder: { color: '#94a3b8' },
-  pickerArrow: { fontSize: 20, color: '#64748b' },
-  input: { backgroundColor: '#fff', borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#1f2937' },
+  pickerButton: { backgroundColor: COLORS.white, borderWidth: 2, borderColor: COLORS.gray300, borderRadius: 12, paddingVertical: 16, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  pickerButtonText: { fontSize: 16, color: COLORS.gray700 },
+  pickerPlaceholder: { color: COLORS.gray400 },
+  pickerArrow: { fontSize: 20, color: COLORS.gray500 },
+  input: { backgroundColor: COLORS.white, borderWidth: 2, borderColor: COLORS.gray300, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: COLORS.gray700 },
   descriptionInput: { height: 120, paddingTop: 14 },
-  submitButton: { backgroundColor: '#1085a8ff', borderRadius: 12, paddingVertical: 16, marginTop: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  submitButton: { backgroundColor: COLORS.darkTeal1,marginBottom:25, borderRadius: 12, paddingVertical: 16, marginTop: 24, alignItems: 'center', shadowColor: COLORS.black, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   submitButtonDisabled: { opacity: 0.6 },
-  submitButtonText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  submitButtonText: { fontSize: 16, fontWeight: '700', color: COLORS.white },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
-  modalHandle: { width: 40, height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 8 },
-  modalHeader: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937', textAlign: 'center' },
+  modalContent: { backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
+  modalHandle: { width: 40, height: 4, backgroundColor: COLORS.gray300, borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 8 },
+  modalHeader: { padding: 20, borderBottomWidth: 1, borderBottomColor: COLORS.gray300 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.gray700, textAlign: 'center' },
   modalSearchContainer: { padding: 16 },
-  modalSearchInput: { backgroundColor: '#f1f5f9', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, fontSize: 16, borderWidth: 2, borderColor: 'transparent' },
+  modalSearchInput: { backgroundColor: COLORS.gray100, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, fontSize: 16, borderWidth: 2, borderColor: COLORS.gray300 },
   modalList: { maxHeight: 400 },
-  modalOption: { paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  modalOptionText: { fontSize: 16, color: '#1f2937' },
-  modalOptionSelected: { backgroundColor: '#e0f2fe' },
-  modalOptionTextSelected: { color: '#1085a8ff', fontWeight: '600' },
+  modalOption: { paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: COLORS.gray200 },
+  modalOptionText: { fontSize: 16, color: COLORS.gray700 },
+  modalOptionSelected: { backgroundColor: COLORS.darkTeal1 + '20' },
+  modalOptionTextSelected: { color: COLORS.darkTeal1, fontWeight: '600' },
 });

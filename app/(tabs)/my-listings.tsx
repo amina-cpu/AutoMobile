@@ -8,6 +8,7 @@ import {
   Image,
   Modal,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +20,28 @@ import { supabase } from '../src/config/supabase';
 
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
+
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',      // RGB(5, 59, 67) - Darkest
+  darkTeal2: '#064C53',      // RGB(6, 76, 83) - Dark
+  darkTeal3: '#05696F',      // RGB(5, 105, 111) - Medium
+  primaryGreen: '#41B975',   // RGB(65, 185, 117) - Primary accent
+  darkGreen: '#268865',      // RGB(38, 136, 101) - Secondary accent
+  white: '#FFFFFF',
+  black: '#000000',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray500: '#64748b',
+  gray700: '#1f2937',
+  red: '#ef4444',
+  lightBlue: '#e0f2fe',
+  blue: '#0284c7',
+  lightRed: '#fee2e2',
+};
 
 export default function MyListingsScreen() {
   const navigation = useNavigation();
@@ -314,17 +337,19 @@ export default function MyListingsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.fullContainer}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1085a8ff" />
+          <ActivityIndicator size="large" color={COLORS.primaryGreen} />
           <Text style={styles.loadingText}>Chargement...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.fullContainer}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
+      
       <View style={styles.headerContainer}>
         <View style={styles.locationRow}>
           <TouchableOpacity 
@@ -353,7 +378,7 @@ export default function MyListingsScreen() {
             <TextInput
               style={styles.searchInput}
               placeholder="Recherche par Marques, modele..."
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={COLORS.gray400}
               value={searchQuery}
               onChangeText={handleSearch}
             />
@@ -361,7 +386,8 @@ export default function MyListingsScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Mes annonces</Text>
         </View>
@@ -384,6 +410,7 @@ export default function MyListingsScreen() {
           renderEmptyState()
         )}
       </ScrollView>
+      </SafeAreaView>
 
       <Modal
         visible={deleteModalVisible}
@@ -418,34 +445,37 @@ export default function MyListingsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fullContainer: {
+    flex: 1,
+    backgroundColor: COLORS.darkTeal1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.lightGray,
   },
   headerBackButton: { 
-  width: 40, 
-  height: 40, 
-  borderRadius: 18,              // ← Changed from 20
-  backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-  justifyContent: 'center', 
-  alignItems: 'center' 
-},
-
-headerBackText: { 
-  fontSize: 28,                  // ← Changed from 20
-  color: '#fff', 
-  fontWeight: 'bold',
-  marginBottom: 10               // ← Add this line
-},
+    width: 40, 
+    height: 40, 
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  headerBackText: { 
+    fontSize: 28,
+    color: COLORS.white, 
+    fontWeight: 'bold',
+    marginBottom: 10
+  },
   headerContainer: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 50,
     paddingBottom: 30,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -467,7 +497,7 @@ headerBackText: {
   },
   backIcon: {
     fontSize: 24,
-    color: '#fff',
+    color: COLORS.white,
     marginBottom: 7,
     fontWeight: '600',
   },
@@ -481,7 +511,7 @@ headerBackText: {
   locationText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.white,
   },
   searchRow: {
     flexDirection: 'row',
@@ -499,7 +529,7 @@ headerBackText: {
     width: 16,
     height: 16,
     borderWidth: 2,
-    borderColor: '#FFF',
+    borderColor: COLORS.white,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     borderBottomWidth: 0,
@@ -508,7 +538,7 @@ headerBackText: {
   bellBottom: {
     width: 20,
     height: 4,
-    backgroundColor: '#FFFF',
+    backgroundColor: COLORS.white,
     borderBottomLeftRadius: 2,
     borderBottomRightRadius: 2,
     marginTop: -1,
@@ -516,7 +546,7 @@ headerBackText: {
   bellClapper: {
     width: 4,
     height: 4,
-    backgroundColor: '#FFFF',
+    backgroundColor: COLORS.white,
     borderRadius: 2,
     position: 'absolute',
     bottom: 2,
@@ -529,11 +559,11 @@ headerBackText: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ef4444',
+    backgroundColor: COLORS.primaryGreen,
   },
   searchBox: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -543,10 +573,10 @@ headerBackText: {
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
+    color: COLORS.gray700,
   },
   filterButton: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     width: 48,
     height: 48,
     borderRadius: 12,
@@ -555,7 +585,7 @@ headerBackText: {
   },
   filterIcon: {
     fontSize: 22,
-    color: '#1085a8ff',
+    color: COLORS.darkTeal1,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -568,7 +598,7 @@ headerBackText: {
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
   },
   carListingContainer: {
     paddingBottom: 100,
@@ -582,7 +612,7 @@ headerBackText: {
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666',
+    color: COLORS.gray500,
   },
   emptyContainer: {
     flex: 1,
@@ -598,33 +628,33 @@ headerBackText: {
   emptyTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: COLORS.gray500,
     textAlign: 'center',
     marginBottom: 24,
   },
   createButton: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
   },
   createButtonText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
   },
   carCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     paddingHorizontal: 10,
     marginHorizontal: 10,
     marginBottom: 20,
     paddingTop: 30,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -634,7 +664,7 @@ headerBackText: {
   carImageContainer: {
     position: 'relative',
     height: 200,
-    backgroundColor: '#f9fafb',
+    backgroundColor: COLORS.gray200,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -650,7 +680,7 @@ headerBackText: {
     position: 'absolute',
     top: 160,
     left: 12,
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
@@ -661,35 +691,35 @@ headerBackText: {
   dealBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#fff',
+    color: COLORS.white,
   },
   priceTag: {
     position: 'absolute',
     top: 170,
     right: 12,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: COLORS.white,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#1085a8ff',
+    borderColor: COLORS.primaryGreen,
   },
   priceTagText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1085a8ff',
+    color: COLORS.primaryGreen,
   },
   editBtn: {
     position: 'absolute',
     top: 12,
     right: 52,
-    backgroundColor: '#e0f2fe',
+    backgroundColor: COLORS.lightBlue,
     borderRadius: 8,
     width: 36,
     height: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -707,7 +737,7 @@ headerBackText: {
     width: 14,
     height: 14,
     borderWidth: 2,
-    borderColor: '#0284c7',
+    borderColor: COLORS.blue,
     borderRadius: 2,
     transform: [{ rotate: '45deg' }],
   },
@@ -722,20 +752,20 @@ headerBackText: {
     borderBottomWidth: 6,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: '#0284c7',
+    borderBottomColor: COLORS.blue,
     transform: [{ rotate: '45deg' }],
   },
   deleteBtn: {
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#fee2e2',
+    backgroundColor: COLORS.lightRed,
     borderRadius: 8,
     width: 36,
     height: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -752,7 +782,7 @@ headerBackText: {
     left: -1,
     width: 18,
     height: 3,
-    backgroundColor: '#dc2626',
+    backgroundColor: COLORS.red,
     borderRadius: 1,
   },
   trashBody: {
@@ -762,7 +792,7 @@ headerBackText: {
     width: 14,
     height: 14,
     borderWidth: 2,
-    borderColor: '#dc2626',
+    borderColor: COLORS.red,
     borderTopWidth: 0,
     borderBottomLeftRadius: 3,
     borderBottomRightRadius: 3,
@@ -773,7 +803,7 @@ headerBackText: {
     left: 5,
     width: 2,
     height: 8,
-    backgroundColor: '#dc2626',
+    backgroundColor: COLORS.red,
   },
   trashLine2: {
     position: 'absolute',
@@ -781,7 +811,7 @@ headerBackText: {
     right: 5,
     width: 2,
     height: 8,
-    backgroundColor: '#dc2626',
+    backgroundColor: COLORS.red,
   },
   carInfo: {
     padding: 16,
@@ -789,7 +819,7 @@ headerBackText: {
   carName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
     marginBottom: 12,
   },
   carDetailsRow: {
@@ -803,15 +833,17 @@ headerBackText: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: COLORS.darkTeal1 + '15',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.darkGreen,
   },
   specText: {
     fontSize: 11,
-    color: '#6b7280',
-    fontWeight: '500',
+    color: COLORS.darkTeal1,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -820,7 +852,7 @@ headerBackText: {
     alignItems: 'center',
   },
   deleteModalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderRadius: 20,
     padding: 24,
     width: '80%',
@@ -829,13 +861,13 @@ headerBackText: {
   deleteTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
     marginBottom: 8,
     textAlign: 'center',
   },
   deleteMessage: {
     fontSize: 14,
-    color: '#64748b',
+    color: COLORS.gray500,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
@@ -853,19 +885,19 @@ headerBackText: {
     justifyContent: 'center',
   },
   cancelDeleteButton: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: COLORS.gray200,
   },
   confirmDeleteButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: COLORS.red,
   },
   cancelDeleteText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
+    color: COLORS.gray500,
   },
   confirmDeleteText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: COLORS.white,
   },
 });

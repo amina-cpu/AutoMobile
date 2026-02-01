@@ -2,21 +2,42 @@ import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Linking,
-    ScrollView,
-    Share,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  Share,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/config/supabase';
 
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
+
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',
+  darkTeal2: '#05696F',
+  darkTeal3: '#05696F',
+  primaryGreen: '#41B975',
+  darkGreen: '#268865',
+  white: '#FFFFFF',
+  black: '#000000',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray500: '#64748b',
+  gray600: '#6b7280',
+  gray700: '#1f2937',
+};
 
 export default function SellerProfileScreen() {
   const route = useRoute();
@@ -242,30 +263,38 @@ export default function SellerProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1085a8ff" />
-        <Text style={styles.loadingText}>Chargement du profil...</Text>
+      <View style={styles.fullContainer}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primaryGreen} />
+          <Text style={styles.loadingText}>Chargement du profil...</Text>
+        </View>
       </View>
     );
   }
 
   if (error || !seller) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Oups!</Text>
-        <Text style={styles.errorText}>{error || 'Vendeur non trouvé'}</Text>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.errorButton}
-        >
-          <Text style={styles.errorButtonText}>← Retour</Text>
-        </TouchableOpacity>
+      <View style={styles.fullContainer}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Oups!</Text>
+          <Text style={styles.errorText}>{error || 'Vendeur non trouvé'}</Text>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.errorButton}
+          >
+            <Text style={styles.errorButtonText}>← Retour</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.fullContainer}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
+      
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -284,179 +313,169 @@ export default function SellerProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {/* Seller Card */}
-        <View style={styles.sellerCard}>
-          <View style={styles.sellerAvatarContainer}>
-            <View style={styles.sellerAvatar}>
-              {seller.avatar_url ? (
-                <Image
-                  source={{ uri: getImageUrl(seller.avatar_url) }}
-                  style={styles.sellerAvatarImage}
-                />
-              ) : (
-                <Text style={styles.sellerAvatarText}>
-                  {getInitials(seller.full_name || seller.email)}
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
+          {/* Seller Card */}
+          <View style={styles.sellerCard}>
+            <View style={styles.sellerAvatarContainer}>
+              <View style={styles.sellerAvatar}>
+                {seller.avatar_url ? (
+                  <Image
+                    source={{ uri: getImageUrl(seller.avatar_url) }}
+                    style={styles.sellerAvatarImage}
+                  />
+                ) : (
+                  <Text style={styles.sellerAvatarText}>
+                    {getInitials(seller.full_name || seller.email)}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.sellerNameSection}>
+              <Text style={styles.sellerName}>
+                {seller.full_name || 'Utilisateur'}
+              </Text>
+            </View>
+
+            {/* Stats Row */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{sellerStats?.totalListings}</Text>
+                <Text style={styles.statLabel}>Annonces</Text>
+              </View>
+              <View style={styles.statDivider} />
+            </View>
+          </View>
+
+          {/* Contact Information */}
+          <View style={styles.infoSection}>
+            <Text style={styles.sectionTitle}>Informations de Contact</Text>
+
+            {seller.email && (
+              <View style={styles.infoItem}>
+                <Text style={styles.infoIcon}>📧</Text>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Email</Text>
+                  <Text style={styles.infoValue}>{seller.email}</Text>
+                </View>
+              </View>
+            )}
+
+            {seller.phone && (
+              <View style={styles.infoItem}>
+                <Text style={styles.infoIcon}>📱</Text>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Téléphone</Text>
+                  <Text style={styles.infoValue}>{seller.phone}</Text>
+                </View>
+              </View>
+            )}
+
+            {seller.city && (
+              <View style={styles.infoItem}>
+                <Text style={styles.infoIcon}>📍</Text>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Localisation</Text>
+                  <Text style={styles.infoValue}>{seller.city}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Seller Details */}
+          <View style={styles.detailsSection}>
+            <Text style={styles.sectionTitle}>Détails Vendeur</Text>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Temps de réponse</Text>
+              <Text style={styles.detailValue}>{sellerStats?.responseTime}</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Dernière activité</Text>
+              <Text style={styles.detailValue}>{sellerStats?.lastActivity}</Text>
+            </View>
+
+            {seller.bio && (
+              <View style={[styles.detailRow, { flexDirection: 'column', alignItems: 'flex-start' }]}>
+                <Text style={styles.detailLabel}>À propos</Text>
+                <Text style={styles.bioText}>{seller.bio}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Cars Section */}
+          {sellerCars.length > 0 ? (
+            <View style={styles.carsSection}>
+              <View style={styles.carsSectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  Annonces de ce vendeur 
                 </Text>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.sellerNameSection}>
-            <Text style={styles.sellerName}>
-              {seller.full_name || 'Utilisateur'}
-            </Text>
-            {/* <View style={styles.ratingContainer}>
-              <Text style={styles.star}>★</Text>
-              <Text style={styles.ratingText}>
-                {sellerStats?.rating} ({sellerStats?.reviews})
-              </Text>
-            </View> */}
-          </View>
-
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{sellerStats?.totalListings}</Text>
-              <Text style={styles.statLabel}>Annonces</Text>
-            </View>
-            <View style={styles.statDivider} />
-            {/* <View style={styles.statItem}>
-              <Text style={styles.statValue}>100%</Text>
-              <Text style={styles.statLabel}>Fiable</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>98%</Text>
-              <Text style={styles.statLabel}>Positif</Text>
-            </View> */}
-          </View>
-        </View>
-
-        {/* Contact Information */}
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Informations de Contact</Text>
-
-          {seller.email && (
-            <View style={styles.infoItem}>
-              <Text style={styles.infoIcon}>📧</Text>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>{seller.email}</Text>
               </View>
+
+              {sellerCars.map((car) => renderCarCard(car))}
             </View>
-          )}
-
-          {seller.phone && (
-            <View style={styles.infoItem}>
-              <Text style={styles.infoIcon}>📱</Text>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Téléphone</Text>
-                <Text style={styles.infoValue}>{seller.phone}</Text>
-              </View>
-            </View>
-          )}
-
-          {seller.city && (
-            <View style={styles.infoItem}>
-              <Text style={styles.infoIcon}>📍</Text>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Localisation</Text>
-                <Text style={styles.infoValue}>{seller.city}</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {/* Seller Details */}
-        <View style={styles.detailsSection}>
-          <Text style={styles.sectionTitle}>Détails Vendeur</Text>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Temps de réponse</Text>
-            <Text style={styles.detailValue}>{sellerStats?.responseTime}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Dernière activité</Text>
-            <Text style={styles.detailValue}>{sellerStats?.lastActivity}</Text>
-          </View>
-
-          {seller.bio && (
-            <View style={[styles.detailRow, { flexDirection: 'column', alignItems: 'flex-start' }]}>
-              <Text style={styles.detailLabel}>À propos</Text>
-              <Text style={styles.bioText}>{seller.bio}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Cars Section */}
-        {sellerCars.length > 0 ? (
-          <View style={styles.carsSection}>
-            <View style={styles.carsSectionHeader}>
-              <Text style={styles.sectionTitle}>
-                Annonces de ce vendeur 
+          ) : (
+            <View style={styles.noCarsContainer}>
+              <Text style={styles.noCarsIcon}>🚗</Text>
+              <Text style={styles.noCarsText}>
+                Ce vendeur n'a pas d'annonces actives
               </Text>
             </View>
+          )}
 
-            {sellerCars.map((car) => renderCarCard(car))}
-          </View>
-        ) : (
-          <View style={styles.noCarsContainer}>
-            <Text style={styles.noCarsIcon}>🚗</Text>
-            <Text style={styles.noCarsText}>
-              Ce vendeur n'a pas d'annonces actives
-            </Text>
-          </View>
-        )}
+          <View style={{ height: 100 }} />
+        </ScrollView>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+        {/* Action Buttons */}
+        <View style={styles.bottomButtons}>
+          <TouchableOpacity
+            style={styles.phoneButton}
+            onPress={handlePhonePress}
+          >
+            <Text style={styles.phoneButtonText}>📞 Appeler</Text>
+          </TouchableOpacity>
 
-      {/* Action Buttons */}
-      <View style={styles.bottomButtons}>
-        <TouchableOpacity
-          style={styles.phoneButton}
-          onPress={handlePhonePress}
-        >
-          <Text style={styles.phoneButtonText}>📞 Appeler</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.messageButton}
-          onPress={handleMessage}
-        >
-          <Text style={styles.messageButtonText}>💬 Message</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.messageButton}
+            onPress={handleMessage}
+          >
+            <Text style={styles.messageButtonText}>💬 Message</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fullContainer: {
+    flex: 1,
+    backgroundColor: COLORS.darkTeal1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#FFFF',
+    backgroundColor: COLORS.white,
   },
   headerBackButton: { 
-  width: 40, 
-  height: 40, 
-  borderRadius: 18,              // ← Changed from 20
-  backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-  justifyContent: 'center', 
-  alignItems: 'center' 
-},
-
-headerBackText: { 
-  fontSize: 28,                  // ← Changed from 20
-  color: '#fff', 
-  fontWeight: 'bold',
-  marginBottom: 10               // ← Add this line
-},
+    width: 40, 
+    height: 40, 
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  headerBackText: { 
+    fontSize: 28,
+    color: COLORS.white, 
+    fontWeight: 'bold',
+    marginBottom: 10
+  },
   header: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 16,
-    paddingTop: 70,
+    paddingTop: 60,
     paddingBottom: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -472,13 +491,13 @@ headerBackText: {
   },
   backButtonText: {
     fontSize: 18,
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: 'bold',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: COLORS.white,
     flex: 1,
     textAlign: 'center',
   },
@@ -492,7 +511,7 @@ headerBackText: {
   },
   shareButtonText: {
     fontSize: 18,
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: 'bold',
   },
   content: {
@@ -506,7 +525,7 @@ headerBackText: {
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666',
+    color: COLORS.gray500,
   },
   errorContainer: {
     flex: 1,
@@ -517,36 +536,37 @@ headerBackText: {
   errorTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1f2937',
+    color: COLORS.white,
     marginBottom: 8,
   },
   errorText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: COLORS.white,
+    opacity: 0.8,
     textAlign: 'center',
     marginBottom: 24,
   },
   errorButton: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.white,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   errorButtonText: {
-    color: '#fff',
+    color: COLORS.darkTeal1,
     fontSize: 14,
     fontWeight: '600',
   },
 
   /* Seller Card */
   sellerCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 12,
     paddingVertical: 24,
     paddingHorizontal: 16,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -560,7 +580,7 @@ headerBackText: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -571,7 +591,7 @@ headerBackText: {
   },
   sellerAvatarText: {
     fontSize: 32,
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: '700',
   },
   sellerNameSection: {
@@ -581,7 +601,7 @@ headerBackText: {
   sellerName: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
     marginBottom: 8,
   },
   ratingContainer: {
@@ -595,7 +615,7 @@ headerBackText: {
   },
   ratingText: {
     fontSize: 13,
-    color: '#6b7280',
+    color: COLORS.gray600,
     fontWeight: '500',
   },
 
@@ -606,7 +626,7 @@ headerBackText: {
     alignItems: 'center',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: COLORS.gray300,
   },
   statItem: {
     flex: 1,
@@ -615,29 +635,29 @@ headerBackText: {
   statValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1085a8ff',
+    color: COLORS.darkTeal1,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: COLORS.gray600,
     fontWeight: '500',
   },
   statDivider: {
     width: 1,
     height: 30,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: COLORS.gray300,
   },
 
   /* Info Section */
   infoSection: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 16,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -658,25 +678,25 @@ headerBackText: {
   },
   infoLabel: {
     fontSize: 11,
-    color: '#6b7280',
+    color: COLORS.gray600,
     fontWeight: '500',
     marginBottom: 2,
   },
   infoValue: {
     fontSize: 13,
-    color: '#1f2937',
+    color: COLORS.gray700,
     fontWeight: '600',
   },
 
   /* Details Section */
   detailsSection: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 16,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -688,21 +708,21 @@ headerBackText: {
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: COLORS.gray200,
   },
   detailLabel: {
     fontSize: 13,
-    color: '#6b7280',
+    color: COLORS.gray600,
     fontWeight: '500',
   },
   detailValue: {
     fontSize: 13,
-    color: '#1f2937',
+    color: COLORS.gray700,
     fontWeight: '600',
   },
   bioText: {
     fontSize: 13,
-    color: '#4b5563',
+    color: COLORS.gray600,
     lineHeight: 20,
     marginTop: 8,
   },
@@ -719,16 +739,16 @@ headerBackText: {
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
   },
 
   /* Car Card */
   carCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     marginBottom: 16,
     borderRadius: 8,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -737,7 +757,7 @@ headerBackText: {
   carImageContainer: {
     position: 'relative',
     height: 180,
-    backgroundColor: '#f9fafb',
+    backgroundColor: COLORS.gray200,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -758,17 +778,17 @@ headerBackText: {
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: COLORS.white,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#1085a8ff',
+    borderColor: COLORS.primaryGreen,
   },
   priceTagText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#1085a8ff',
+    color: COLORS.primaryGreen,
   },
   carInfo: {
     padding: 12,
@@ -776,12 +796,12 @@ headerBackText: {
   carName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
     marginBottom: 4,
   },
   carSubtitle: {
     fontSize: 11,
-    color: '#6b7280',
+    color: COLORS.gray600,
     marginBottom: 10,
   },
   carDetailsRow: {
@@ -791,15 +811,17 @@ headerBackText: {
     gap: 6,
   },
   specItem: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: COLORS.darkTeal1 + '15',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.darkGreen,
   },
   specText: {
     fontSize: 10,
-    color: '#6b7280',
-    fontWeight: '500',
+    color: COLORS.darkTeal1,
+    fontWeight: '600',
   },
 
   /* No Cars */
@@ -813,7 +835,7 @@ headerBackText: {
   },
   noCarsText: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: COLORS.gray500,
     textAlign: 'center',
   },
 
@@ -823,10 +845,10 @@ headerBackText: {
     gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    shadowColor: '#000',
+    borderTopColor: COLORS.gray300,
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -836,27 +858,27 @@ headerBackText: {
     flex: 1,
     paddingVertical: 12,
     borderWidth: 2,
-    borderColor: '#1085a8ff',
+    borderColor: COLORS.darkTeal1,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   phoneButtonText: {
     fontSize: 14,
-    color: '#1085a8ff',
+    color: COLORS.darkTeal1,
     fontWeight: '700',
   },
   messageButton: {
     flex: 1,
     paddingVertical: 12,
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   messageButtonText: {
     fontSize: 14,
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: '700',
   },
 });

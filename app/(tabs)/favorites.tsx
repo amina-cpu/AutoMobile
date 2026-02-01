@@ -15,6 +15,24 @@ import { supabase } from '../src/config/supabase';
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
 
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',      // RGB(5, 59, 67) - Darkest
+  darkTeal2: '#064C53',      // RGB(6, 76, 83) - Dark
+  darkTeal3: '#05696F',      // RGB(5, 105, 111) - Medium
+  primaryGreen: '#41B975',   // RGB(65, 185, 117) - Primary accent
+  darkGreen: '#268865',      // RGB(38, 136, 101) - Secondary accent
+  white: '#FFFFFF',
+  black: '#000000',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray500: '#64748b',
+  gray700: '#1f2937',
+};
+
 interface FavoriteCar {
   id: string;
   brand: string;
@@ -234,7 +252,7 @@ export default function FavoritesScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1085a8ff" />
+          <ActivityIndicator size="large" color={COLORS.primaryGreen} />
           <Text style={styles.loadingText}>Chargement de vos favoris...</Text>
         </View>
       ) : favorites.length === 0 ? (
@@ -265,10 +283,10 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.lightGray,
   },
   headerContainer: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 20,
     paddingTop: 80,
     paddingBottom: 20,
@@ -288,14 +306,14 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 28,
-    color: '#fff',
-    marginBottom:10,
+    color: COLORS.white,
+    marginBottom: 10,
     fontWeight: 'bold',
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.white,
     flex: 1,
     textAlign: 'center',
   },
@@ -304,7 +322,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#fff',
+    color: COLORS.white,
     opacity: 0.9,
   },
   loadingContainer: {
@@ -316,7 +334,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666',
+    color: COLORS.gray500,
   },
   emptyContainer: {
     flex: 1,
@@ -332,25 +350,25 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: COLORS.gray500,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
   },
   exploreButton: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 12,
   },
   exploreButtonText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -358,12 +376,12 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   carCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     paddingHorizontal: 10,
     marginHorizontal: 10,
     marginBottom: 20,
     paddingTop: 30,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -373,7 +391,7 @@ const styles = StyleSheet.create({
   carImageContainer: {
     position: 'relative',
     height: 200,
-    backgroundColor: '#f9fafb',
+    backgroundColor: COLORS.gray200,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -389,29 +407,29 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: COLORS.white,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#1085a8ff',
+    borderColor: COLORS.primaryGreen,
   },
   priceTagText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1085a8ff',
+    color: COLORS.primaryGreen,
   },
   removeButton: {
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     borderRadius: 24,
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -426,7 +444,7 @@ const styles = StyleSheet.create({
   carName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
     marginBottom: 12,
   },
   carDetailsRow: {
@@ -440,14 +458,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: COLORS.darkTeal1 + '15',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.darkGreen,
   },
   specText: {
     fontSize: 11,
-    color: '#6b7280',
-    fontWeight: '500',
+    color: COLORS.darkTeal1,
+    fontWeight: '600',
   },
 });

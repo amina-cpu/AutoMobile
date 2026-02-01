@@ -1,19 +1,38 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/config/supabase';
 
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
+
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',
+  darkTeal2: '#064C53',
+  darkTeal3: '#05696F',
+  primaryGreen: '#41B975',
+  darkGreen: '#268865',
+  white: '#FFFFFF',
+  black: '#000000',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray500: '#64748b',
+  gray700: '#1f2937',
+};
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
@@ -240,7 +259,9 @@ export default function NotificationsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.fullContainer}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
+      
       <View style={styles.headerContainer}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -252,68 +273,73 @@ export default function NotificationsScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1085a8ff" />
-          <Text style={styles.loadingText}>Chargement des notifications...</Text>
-        </View>
-      ) : !notificationsEnabled ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🔕</Text>
-          <Text style={styles.emptyTitle}>Notifications désactivées</Text>
-          <Text style={styles.emptyText}>
-            Activez les notifications dans les paramètres pour recevoir des alertes lorsque quelqu'un aime vos véhicules
-          </Text>
-          <TouchableOpacity 
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('settings')}
-          >
-            <Text style={styles.settingsButtonText}>Aller aux paramètres</Text>
-          </TouchableOpacity>
-        </View>
-      ) : notifications.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🔔</Text>
-          <Text style={styles.emptyTitle}>Aucune notification</Text>
-          <Text style={styles.emptyText}>
-            Vous recevrez des notifications lorsque quelqu'un aime vos véhicules
-          </Text>
-        </View>
-      ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.notificationsContainer}>
-            {notifications.map((notification) => renderNotification(notification))}
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primaryGreen} />
+            <Text style={styles.loadingText}>Chargement des notifications...</Text>
           </View>
-        </ScrollView>
-      )}
-    </SafeAreaView>
+        ) : !notificationsEnabled ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>🔕</Text>
+            <Text style={styles.emptyTitle}>Notifications désactivées</Text>
+            <Text style={styles.emptyText}>
+              Activez les notifications dans les paramètres pour recevoir des alertes lorsque quelqu'un aime vos véhicules
+            </Text>
+            <TouchableOpacity 
+              style={styles.settingsButton}
+              onPress={() => navigation.navigate('settings')}
+            >
+              <Text style={styles.settingsButtonText}>Aller aux paramètres</Text>
+            </TouchableOpacity>
+          </View>
+        ) : notifications.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>🔔</Text>
+            <Text style={styles.emptyTitle}>Aucune notification</Text>
+            <Text style={styles.emptyText}>
+              Vous recevrez des notifications lorsque quelqu'un aime vos véhicules
+            </Text>
+          </View>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.notificationsContainer}>
+              {notifications.map((notification) => renderNotification(notification))}
+            </View>
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fullContainer: {
+    flex: 1,
+    backgroundColor: COLORS.darkTeal1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.lightGray,
   },
   headerBackButton: { 
-  width: 40, 
-  height: 40, 
-  borderRadius: 18,              // ← Changed from 20
-  backgroundColor: 'rgba(255, 255, 255, 0.2)', 
-  justifyContent: 'center', 
-  alignItems: 'center' 
-},
-
-headerBackText: { 
-  fontSize: 28,                  // ← Changed from 20
-  color: '#fff', 
-  fontWeight: 'bold',
-  marginBottom: 10               // ← Add this line
-},
+    width: 40, 
+    height: 40, 
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  headerBackText: { 
+    fontSize: 28,
+    color: COLORS.white, 
+    fontWeight: 'bold',
+    marginBottom: 10
+  },
   headerContainer: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
@@ -331,13 +357,13 @@ headerBackText: {
   },
   backIcon: {
     fontSize: 24,
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: '600',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.white,
   },
   placeholder: {
     width: 40,
@@ -351,7 +377,7 @@ headerBackText: {
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666',
+    color: COLORS.gray500,
   },
   emptyContainer: {
     flex: 1,
@@ -367,26 +393,26 @@ headerBackText: {
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyText: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: COLORS.gray500,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
   },
   settingsButton: {
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
     marginTop: 8,
   },
   settingsButtonText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -395,12 +421,12 @@ headerBackText: {
     paddingBottom: 100,
   },
   notificationCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -418,20 +444,20 @@ headerBackText: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: COLORS.gray300,
   },
   avatarPlaceholder: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#1085a8ff',
+    backgroundColor: COLORS.darkTeal1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.white,
   },
   heartBadge: {
     position: 'absolute',
@@ -440,11 +466,11 @@ headerBackText: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.white,
   },
   heartIcon: {
     fontSize: 12,
@@ -455,28 +481,28 @@ headerBackText: {
   },
   notificationText: {
     fontSize: 14,
-    color: '#1f2937',
+    color: COLORS.gray700,
     lineHeight: 20,
     marginBottom: 4,
   },
   userName: {
     fontWeight: 'bold',
-    color: '#1085a8ff',
+    color: COLORS.darkTeal1,
   },
   carName: {
     fontWeight: '600',
-    color: '#1f2937',
+    color: COLORS.darkTeal1,
   },
   timeText: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: COLORS.gray500,
   },
   carImageContainer: {
     width: 56,
     height: 56,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: COLORS.gray200,
   },
   carImage: {
     width: '100%',

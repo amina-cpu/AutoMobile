@@ -20,6 +20,25 @@ const { width } = Dimensions.get('window');
 const SUPABASE_URL = 'https://hhzwamxtmjdxtdmiwshi.supabase.co';
 const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhoendhbXh0bWpkeHRkbWl3c2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0NTk5NTYsImV4cCI6MjA4NDAzNTk1Nn0.yQTwux9GBg1LUOBghN5mH_dzojwNPDi3kRDEUdJF2OA';
 
+// COLORS - Dark Teal Theme
+const COLORS = {
+  darkTeal1: '#05696F',      // RGB(5, 59, 67) - Darkest
+  darkTeal2: '#064C53',      // RGB(6, 76, 83) - Dark
+  darkTeal3: '#05696F',      // RGB(5, 105, 111) - Medium
+  primaryGreen: '#05696F',   // RGB(65, 185, 117) - Primary accent
+  darkGreen: '#268865',      // RGB(38, 136, 101) - Secondary accent
+  white: '#FFFFFF',
+  black: '#000000',
+  lightGray: '#f5f5f5',
+  gray100: '#f8fafc',
+  gray200: '#f1f5f9',
+  gray300: '#e2e8f0',
+  gray400: '#cbd5e1',
+  gray500: '#64748b',
+  gray700: '#1f2937',
+  red: '#ef4444',
+};
+
 const brands = ['AUDI', 'BMW', 'CITROEN', 'FIAT', 'FORD', 'MERCEDES-BENZ', 'OPEL', 'PEUGEOT', 'RENAULT', 'VOLKSWAGEN', 'TOYOTA', 'HONDA'];
 const fuelTypes = ['Essence', 'Diesel', 'Hybride', 'Hybride Rechargeable', 'Électrique', 'GPL', 'Autre'];
 const transmissions = ['Manuelle', 'Automatique'];
@@ -407,7 +426,7 @@ export default function SellScreen() {
                     </>
                   ) : (
                     <View style={styles.photoIconContainer}>
-                      <Text style={{ fontSize: 50, color: '#1085a8ff' }}>{icon}</Text>
+                      <Text style={{ fontSize: 50, color: COLORS.darkTeal1 }}>{icon}</Text>
                       <Text style={styles.photoText}>{label}</Text>
                     </View>
                   )}
@@ -569,7 +588,7 @@ export default function SellScreen() {
           disabled={!validateStep() || loading}
         >
           {loading ? (
-            <ActivityIndicator color="#ffffff" />
+            <ActivityIndicator color={COLORS.white} />
           ) : (
             <Text style={styles.continueButtonText}>
               {step === totalSteps ? 'Publier l\'annonce' : 'Continuer'}
@@ -616,7 +635,11 @@ export default function SellScreen() {
               </View>
             )}
 
-            <ScrollView style={styles.modalList}>
+            <ScrollView 
+  style={styles.modalList}
+  contentContainerStyle={styles.modalListContent}
+  showsVerticalScrollIndicator={false}
+>
               {filteredModalData.map((item, index) => (
                 <TouchableOpacity
                   key={index}
@@ -645,50 +668,264 @@ export default function SellScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#ffffff' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginTop: 40 },
-  backButton: { padding: 8 },
-  backIcon: { fontSize: 24, color: '#1f2937' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#1f2937', marginLeft: 16 },
-  progressBar: { height: 4, backgroundColor: '#e5e7eb' },
-  progressFill: { height: '100%', backgroundColor: '#1085a8ff' },
-  content: { flex: 1 },
-  stepContainer: { padding: 20 },
-  stepTitle: { fontSize: 28, fontWeight: 'bold', color: '#1f2937', marginBottom: 8 },
-  stepSubtitle: { fontSize: 15, color: '#64748b', marginBottom: 24, lineHeight: 22 },
-  sectionLabel: { fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 16 },
-  required: { color: '#ef4444' },
-  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
-  photoBox: { width: (width - 52) / 2, aspectRatio: 1, backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 2, borderColor: '#1085a8ff', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  photoBoxFilled: { borderWidth: 3 },
-  photoImage: { width: '100%', height: '100%' },
-  photoLabel: { position: 'absolute', top: 12, left: 12, right: 12, backgroundColor: '#1085a8ff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  photoLabelText: { color: '#ffffff', fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  photoIconContainer: { alignItems: 'center', padding: 16 },
-  photoText: { fontSize: 12, fontWeight: '600', color: '#1085a8ff', textAlign: 'center', marginTop: 8, lineHeight: 16 },
-  removePhotoButton: { position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center' },
-  removePhotoText: { color: '#ffffff', fontSize: 20, fontWeight: 'bold' },
-  fieldContainer: { marginBottom: 20 },
-  fieldLabel: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 12 },
-  pickerButton: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pickerButtonText: { fontSize: 16, color: '#1f2937' },
-  pickerPlaceholder: { color: '#94a3b8' },
-  pickerArrow: { fontSize: 20, color: '#64748b' },
-  input: { backgroundColor: '#f8fafc', borderWidth: 2, borderColor: '#e2e8f0', borderRadius: 12, paddingVertical: 16, paddingHorizontal: 16, fontSize: 16, color: '#1f2937' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
-  modalHandle: { width: 40, height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 8 },
-  modalHeader: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937', textAlign: 'center' },
-  modalSearchContainer: { padding: 16 },
-  modalSearchInput: { backgroundColor: '#f1f5f9', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, fontSize: 16, borderWidth: 2, borderColor: 'transparent' },
-  modalList: { maxHeight: 400 },
-  modalOption: { paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  modalOptionText: { fontSize: 16, color: '#1f2937' },
-  modalOptionSelected: { backgroundColor: '#e0f2fe' },
-  modalOptionTextSelected: { color: '#1085a8ff', fontWeight: '600' },
-  bottomContainer: { padding: 20, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#e5e7eb' },
-  continueButton: { backgroundColor: '#1085a8ff', borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
-  continueButtonDisabled: { backgroundColor: '#cbd5e1' },
-  continueButtonText: { fontSize: 16, fontWeight: 'bold', color: '#ffffff' },
+  container: { 
+    flex: 1, 
+    backgroundColor: COLORS.white 
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 16, 
+    paddingVertical: 16, 
+    backgroundColor: COLORS.white, 
+    borderBottomWidth: 1, 
+    borderBottomColor: COLORS.gray300, 
+    marginTop: 40 
+  },
+  backButton: { 
+    padding: 8 
+  },
+  backIcon: { 
+    fontSize: 24, 
+    color: COLORS.darkTeal1,
+    fontWeight: 'bold'
+  },
+  headerTitle: { 
+    fontSize: 18, 
+    fontWeight: '700', 
+    color: COLORS.darkTeal1, 
+    marginLeft: 16 
+  },
+  progressBar: { 
+    height: 4, 
+    backgroundColor: COLORS.gray300 
+  },
+  progressFill: { 
+    height: '100%', 
+    backgroundColor: COLORS.primaryGreen 
+  },
+  content: { 
+    flex: 1 
+  },
+  stepContainer: { 
+    padding: 20 
+  },
+  stepTitle: { 
+    fontSize: 28, 
+    fontWeight: 'bold', 
+    color: COLORS.darkTeal1, 
+    marginBottom: 8 
+  },
+  stepSubtitle: { 
+    fontSize: 15, 
+    color: COLORS.gray500, 
+    marginBottom: 24, 
+    lineHeight: 22 
+  },
+  sectionLabel: { 
+    fontSize: 16, 
+    fontWeight: 'bold', 
+    color: COLORS.darkTeal1, 
+    marginBottom: 16 
+  },
+  required: { 
+    color: COLORS.red 
+  },
+  photoGrid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 12, 
+    marginBottom: 20 
+  },
+  photoBox: { 
+    width: (width - 52) / 2, 
+    aspectRatio: 1, 
+    backgroundColor: COLORS.white, 
+    borderRadius: 16, 
+    borderWidth: 2, 
+    borderColor: COLORS.darkTeal1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    overflow: 'hidden' 
+  },
+  photoBoxFilled: { 
+    borderWidth: 3,
+    borderColor: COLORS.primaryGreen
+  },
+  photoImage: { 
+    width: '100%', 
+    height: '100%' 
+  },
+  photoLabel: { 
+    position: 'absolute', 
+    top: 12, 
+    left: 12, 
+    right: 12, 
+    backgroundColor: COLORS.darkTeal1, 
+    paddingHorizontal: 12, 
+    paddingVertical: 8, 
+    borderRadius: 8 
+  },
+  photoLabelText: { 
+    color: COLORS.white, 
+    fontSize: 12, 
+    fontWeight: '700', 
+    textAlign: 'center' 
+  },
+  photoIconContainer: { 
+    alignItems: 'center', 
+    padding: 16 
+  },
+  photoText: { 
+    fontSize: 12, 
+    fontWeight: '600', 
+    color: COLORS.darkTeal1, 
+    textAlign: 'center', 
+    marginTop: 8, 
+    lineHeight: 16 
+  },
+  removePhotoButton: { 
+    position: 'absolute', 
+    top: 12, 
+    right: 12, 
+    width: 32, 
+    height: 32, 
+    borderRadius: 16, 
+    backgroundColor: COLORS.red, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  removePhotoText: { 
+    color: COLORS.white, 
+    fontSize: 20, 
+    fontWeight: 'bold' 
+  },
+  fieldContainer: { 
+    marginBottom: 30 
+  },
+  fieldLabel: { 
+    fontSize: 16, 
+    fontWeight: '600', 
+    color: COLORS.darkTeal1, 
+    marginBottom: 20 
+  },
+  pickerButton: { 
+    backgroundColor: COLORS.gray100, 
+    borderWidth: 2, 
+    borderColor: COLORS.gray300, 
+    borderRadius: 12, 
+    paddingVertical: 16, 
+    paddingHorizontal: 16, 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center' 
+  },
+  pickerButtonText: { 
+    fontSize: 16, 
+    color: COLORS.gray700 
+  },
+  pickerPlaceholder: { 
+    color: COLORS.gray400 
+  },
+  pickerArrow: { 
+    fontSize: 20, 
+    color: COLORS.darkTeal1,
+    fontWeight: 'bold'
+  },
+  input: { 
+    backgroundColor: COLORS.gray100, 
+    borderWidth: 2, 
+    borderColor: COLORS.gray300, 
+    borderRadius: 12, 
+    paddingVertical: 16, 
+    paddingHorizontal: 16, 
+    fontSize: 16, 
+    color: COLORS.gray700 
+  },
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+    justifyContent: 'flex-end' 
+  },
+  modalContent: { 
+    backgroundColor: COLORS.white, 
+    borderTopLeftRadius: 24, 
+    borderTopRightRadius: 24, 
+    maxHeight: '80%' 
+  },
+  modalListContent: {
+  paddingBottom: 40  // Extra space at bottom so last items are visible
+},
+  modalHandle: { 
+    width: 40, 
+    height: 4, 
+    backgroundColor: COLORS.gray300, 
+    borderRadius: 2, 
+    alignSelf: 'center', 
+    marginTop: 12, 
+    marginBottom: 8 
+  },
+  modalHeader: { 
+    padding: 20, 
+    borderBottomWidth: 1, 
+    borderBottomColor: COLORS.gray300 
+  },
+  modalTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: COLORS.darkTeal1, 
+    textAlign: 'center' 
+  },
+  modalSearchContainer: { 
+    padding: 16 
+  },
+  modalSearchInput: { 
+    backgroundColor: COLORS.gray200, 
+    borderRadius: 12, 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    fontSize: 16, 
+    borderWidth: 2, 
+    borderColor: COLORS.gray300 
+  },
+  modalList: { 
+    maxHeight: 400 
+  },
+  modalOption: { 
+    paddingVertical: 16, 
+    paddingHorizontal: 20, 
+    borderBottomWidth: 1, 
+    borderBottomColor: COLORS.gray200 
+  },
+  modalOptionText: { 
+    fontSize: 16, 
+    color: COLORS.gray700 
+  },
+  modalOptionSelected: { 
+    backgroundColor: COLORS.darkTeal1 + '15'
+  },
+  modalOptionTextSelected: { 
+    color: COLORS.darkTeal1, 
+    fontWeight: '600' 
+  },
+  bottomContainer: { 
+    padding: 20, 
+    backgroundColor: COLORS.white, 
+    borderTopWidth: 1, 
+    borderTopColor: COLORS.gray300 
+  },
+  continueButton: { 
+    backgroundColor: COLORS.darkTeal1, 
+    borderRadius: 12, 
+    paddingVertical: 16, 
+    alignItems: 'center' 
+  },
+  continueButtonDisabled: { 
+    backgroundColor: COLORS.gray400 
+  },
+  continueButtonText: { 
+    fontSize: 16, 
+    fontWeight: 'bold', 
+    color: COLORS.white 
+  },
 });
