@@ -66,46 +66,75 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    getUserLocation();
+    // Give the app a moment to fully mount before requesting permissions
+    const timer = setTimeout(() => {
+      getUserLocation();
+    }, 500);
+    
     getUserInfo();
+    
+    return () => clearTimeout(timer);
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       loadCars();
+      // ✅ Also try to refresh location when screen comes into focus
+      getUserLocation();
     }, [])
   );
 
+  // ✅ FIXED: Location permission properly handles first-time requests
   const getUserLocation = async () => {
     try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('📍 Demande de permission de localisation...');
       
+      // Request permission (will show dialog on first time)
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      console.log('📍 Permission status:', status);
+      
+      // ✅ Only proceed if permission is GRANTED
       if (status !== 'granted') {
-        setLocation('Location');
+        console.log('⚠️ Permission de localisation refusée par l\'utilisateur');
+        setLocation('Localisation');
         return;
       }
 
-      let currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      console.log('✅ Permission de localisation accordée');
 
-      const { latitude, longitude } = currentLocation.coords;
+      // Permission is granted, get location
+      try {
+        let currentLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
 
-      let reverseGeocode = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
+        const { latitude, longitude } = currentLocation.coords;
+        console.log('📍 Localisation obtenue:', latitude, longitude);
 
-      if (reverseGeocode && reverseGeocode.length > 0) {
-        const address = reverseGeocode[0];
-        const city = address.city || address.subregion || address.region || 'Algérie';
-        setLocation(city);
-      } else {
-        setLocation('Location');
+        // Reverse geocode to get city name
+        let reverseGeocode = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
+        });
+
+        if (reverseGeocode && reverseGeocode.length > 0) {
+          const address = reverseGeocode[0];
+          const city = address.city || address.subregion || address.region || 'Localisation';
+          console.log('✅ Ville trouvée:', city);
+          setLocation(city);
+        } else {
+          console.log('⚠️ Aucune ville trouvée - utilisation par défaut');
+          setLocation('Localisation');
+        }
+      } catch (locationError) {
+        console.log('ℹ️ Erreur lors de la récupération de la localisation:', locationError.message);
+        setLocation('Localisation');
       }
     } catch (error) {
-      console.error('Erreur de localisation:', error);
-      setLocation('Location');
+      // ✅ Silently handle permission request errors
+      console.log('ℹ️ Erreur lors de la demande de permission:', error.message);
+      setLocation('Localisation');
     }
   };
 
@@ -535,8 +564,8 @@ const styles = StyleSheet.create({
   greetingContainer: { flex: 1 },
   greetingText: { fontSize: 20, fontWeight: 'bold', color: COLORS.white },
   notificationIconContainer: { position: 'relative' },
-  bellIcon: { width: 20, height: 22 },
-  bellTop: { width: 16, height: 16, borderWidth: 2, borderColor: COLORS.white, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomWidth: 0, marginLeft: 2 },
+  bellIcon: { width: 20, height: 22, },
+  bellTop: { width: 16, height: 16, color: '#FFFF',borderWidth: 2, borderColor: COLORS.white, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomWidth: 0, marginLeft: 2 },
   bellBottom: { width: 20, height: 4, backgroundColor: COLORS.white, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, marginTop: -1 },
   bellClapper: { width: 4, height: 4, backgroundColor: COLORS.white, borderRadius: 2, position: 'absolute', bottom: 2, left: 8 },
   notificationDot: {

@@ -305,12 +305,12 @@ export default function SellerProfileScreen() {
 
         <Text style={styles.headerTitle}>Profil Vendeur</Text>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.shareButton}
           onPress={handleShare}
         >
           <Text style={styles.shareButtonText}>↗</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -425,7 +425,7 @@ export default function SellerProfileScreen() {
             </View>
           )}
 
-          <View style={{ height: 100 }} />
+       
         </ScrollView>
 
         {/* Action Buttons */}
@@ -499,6 +499,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.white,
     flex: 1,
+    paddingRight:10,
     textAlign: 'center',
   },
   shareButton: {

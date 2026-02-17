@@ -3,11 +3,13 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -44,6 +46,17 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [changePasswordModalVisible, setChangePasswordModalVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [currentPasswordFocused, setCurrentPasswordFocused] = useState(false);
+  const [newPasswordFocused, setNewPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -75,10 +88,8 @@ export default function SettingsScreen() {
 
       if (fetchError) {
         console.error('❌ [Settings] Error fetching settings:', fetchError);
-        // If column doesn't exist, default to enabled
         setNotificationsEnabled(true);
       } else {
-        // If column exists but is null, default to enabled
         setNotificationsEnabled(userData?.notifications_enabled !== false);
         console.log('✅ [Settings] Notifications enabled:', userData?.notifications_enabled);
       }
@@ -101,7 +112,6 @@ export default function SettingsScreen() {
         return;
       }
 
-      // Update notification setting in database
       const { error } = await supabase
         .from('users')
         .update({ notifications_enabled: value })
@@ -130,6 +140,124 @@ export default function SettingsScreen() {
     }
   };
 
+  // ✅ CRITICAL FIX: Use signOut + signIn approach instead of updateUser
+  const handleChangePassword = async () => {
+    setPasswordError('');
+
+    // Validation
+    if (!currentPassword.trim()) {
+      setPasswordError('Veuillez entrer votre mot de passe actuel');
+      return;
+    }
+
+    if (!newPassword.trim()) {
+      setPasswordError('Veuillez entrer un nouveau mot de passe');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('Le nouveau mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setPasswordError('Le nouveau mot de passe doit être différent de l\'ancien');
+      return;
+    }
+
+    // ✅ Close modal immediately to prevent UI freeze
+    setChangePasswordModalVisible(false);
+    setSaving(true);
+
+    try {
+      console.log('🔑 [Settings] Step 1: Verifying current password...');
+
+      // Get current user to get email
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        throw new Error('User not found');
+      }
+
+      // Step 1: Verify current password by attempting sign in (don't update session)
+      console.log('🔑 [Settings] Step 2: Testing current password with sign in...');
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        console.error('❌ [Settings] Invalid current password');
+        setSaving(false);
+        setTimeout(() => {
+          setPasswordError('Le mot de passe actuel est incorrect');
+          setChangePasswordModalVisible(true);
+        }, 100);
+        return;
+      }
+
+      console.log('✅ [Settings] Current password verified');
+
+      // Step 2: Update password using updateUser
+      // This will trigger USER_UPDATED event but we close the modal first
+      console.log('🔑 [Settings] Step 3: Updating password...');
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        console.error('❌ [Settings] Error updating password:', updateError);
+        setSaving(false);
+        setTimeout(() => {
+          setPasswordError(updateError.message || 'Erreur lors de la mise à jour');
+          setChangePasswordModalVisible(true);
+        }, 100);
+        return;
+      }
+
+      console.log('✅ [Settings] Password updated successfully');
+
+      // Reset form immediately
+      resetPasswordForm();
+      setSaving(false);
+
+      // Show success after a delay to ensure UI is stable
+      setTimeout(() => {
+        showSuccess(
+          'Mot de passe changé ✓',
+          'Votre mot de passe a été mis à jour avec succès. Vous resterez connecté.'
+        );
+      }, 400);
+
+    } catch (error) {
+      console.error('❌ [Settings] Error:', error);
+      setSaving(false);
+      
+      setTimeout(() => {
+        setPasswordError(error.message || 'Une erreur est survenue');
+        setChangePasswordModalVisible(true);
+      }, 100);
+    }
+  };
+
+  const resetPasswordForm = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError('');
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+    setCurrentPasswordFocused(false);
+    setNewPasswordFocused(false);
+    setConfirmPasswordFocused(false);
+  };
+
   const handleDeleteAccount = () => {
     Alert.alert(
       'Supprimer le compte',
@@ -148,8 +276,6 @@ export default function SettingsScreen() {
   const confirmDeleteAccount = async () => {
     try {
       setSaving(true);
-      // In a real app, you would call an edge function or backend API
-      // that handles account deletion properly
       Alert.alert(
         'Non implémenté',
         'La suppression de compte nécessite une implémentation backend sécurisée.'
@@ -241,57 +367,33 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          {/* Account Section */}
-          {/* <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Compte</Text>
+          {/* Security Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Sécurité</Text>
             
             <View style={styles.settingCard}>
               <TouchableOpacity 
                 style={styles.settingRow}
-                onPress={() => router.push('/profile')}
+                onPress={() => setChangePasswordModalVisible(true)}
               >
                 <View style={styles.settingIconContainer}>
-                  <View style={styles.userIcon}>
-                    <View style={styles.userHead} />
-                    <View style={styles.userBody} />
+                  <View style={styles.lockIcon}>
+                    <View style={styles.lockBody} />
+                    <View style={styles.lockShackle} />
                   </View>
                 </View>
                 
                 <View style={styles.settingTextContainer}>
-                  <Text style={styles.settingTitle}>Modifier le profil</Text>
+                  <Text style={styles.settingTitle}>Changer le mot de passe</Text>
                   <Text style={styles.settingDescription}>
-                    Nom, email, photo de profil
-                  </Text>
-                </View>
-                
-                <Text style={styles.chevron}>›</Text>
-              </TouchableOpacity>
-
-              <View style={styles.divider} />
-
-              <TouchableOpacity 
-                style={styles.settingRow}
-                onPress={() => router.push('/my-listings')}
-              >
-                <View style={styles.settingIconContainer}>
-                  <View style={styles.listIcon}>
-                    <View style={styles.listLine} />
-                    <View style={styles.listLine} />
-                    <View style={styles.listLine} />
-                  </View>
-                </View>
-                
-                <View style={styles.settingTextContainer}>
-                  <Text style={styles.settingTitle}>Mes annonces</Text>
-                  <Text style={styles.settingDescription}>
-                    Gérer vos véhicules en vente
+                    Mettre à jour votre mot de passe
                   </Text>
                 </View>
                 
                 <Text style={styles.chevron}>›</Text>
               </TouchableOpacity>
             </View>
-          </View> */}
+          </View>
 
           {/* About Section */}
           <View style={styles.section}>
@@ -343,9 +445,8 @@ export default function SettingsScreen() {
                 onPress={() => Alert.alert('Confidentialité', 'Politique de confidentialité')}
               >
                 <View style={styles.settingIconContainer}>
-                  <View style={styles.lockIcon}>
-                    <View style={styles.lockBody} />
-                    <View style={styles.lockShackle} />
+                  <View style={styles.securityIcon}>
+                    <View style={styles.shieldBody} />
                   </View>
                 </View>
                 
@@ -358,39 +459,158 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          {/* Danger Zone */}
-          {/* <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Zone dangereuse</Text>
-            
-            <View style={styles.settingCard}>
-              <TouchableOpacity 
-                style={styles.settingRow}
-                onPress={handleDeleteAccount}
-                disabled={saving}
-              >
-                <View style={[styles.settingIconContainer, styles.dangerIcon]}>
-                  <View style={styles.trashIcon}>
-                    <View style={styles.trashLid} />
-                    <View style={styles.trashBody} />
-                  </View>
-                </View>
-                
-                <View style={styles.settingTextContainer}>
-                  <Text style={[styles.settingTitle, styles.dangerText]}>
-                    Supprimer le compte
-                  </Text>
-                  <Text style={styles.settingDescription}>
-                    Cette action est irréversible
-                  </Text>
-                </View>
-                
-                <Text style={[styles.chevron, styles.dangerText]}>›</Text>
-              </TouchableOpacity>
-            </View>
-          </View> */}
-
           <View style={{ height: 40 }} />
         </ScrollView>
+
+        {/* Change Password Modal */}
+        <Modal
+          visible={changePasswordModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            if (!saving) {
+              setChangePasswordModalVisible(false);
+              resetPasswordForm();
+            }
+          }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Changer le mot de passe</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => {
+                    if (!saving) {
+                      setChangePasswordModalVisible(false);
+                      resetPasswordForm();
+                    }
+                  }}
+                  disabled={saving}
+                >
+                  <Text style={styles.modalCloseIcon}>×</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView 
+                style={styles.modalScrollView}
+                showsVerticalScrollIndicator={false}
+              >
+                {passwordError ? (
+                  <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>⚠️ {passwordError}</Text>
+                  </View>
+                ) : null}
+
+                {/* Current Password */}
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Mot de passe actuel</Text>
+                  <View style={[styles.passwordInputContainer, currentPasswordFocused && styles.passwordInputContainerFocused]}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Entrez votre mot de passe"
+                      placeholderTextColor={COLORS.gray400}
+                      value={currentPassword}
+                      onChangeText={setCurrentPassword}
+                      onFocus={() => setCurrentPasswordFocused(true)}
+                      onBlur={() => setCurrentPasswordFocused(false)}
+                      editable={!saving}
+                      secureTextEntry={!showCurrentPassword}
+                    />
+                    <TouchableOpacity
+                      style={styles.toggleButton}
+                      onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                      disabled={saving}
+                    >
+                      <Text style={styles.toggleButtonText}>{showCurrentPassword ? '○' : '●'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* New Password */}
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Nouveau mot de passe</Text>
+                  <View style={[styles.passwordInputContainer, newPasswordFocused && styles.passwordInputContainerFocused]}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Au moins 6 caractères"
+                      placeholderTextColor={COLORS.gray400}
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      onFocus={() => setNewPasswordFocused(true)}
+                      onBlur={() => setNewPasswordFocused(false)}
+                      editable={!saving}
+                      secureTextEntry={!showNewPassword}
+                    />
+                    <TouchableOpacity
+                      style={styles.toggleButton}
+                      onPress={() => setShowNewPassword(!showNewPassword)}
+                      disabled={saving}
+                    >
+                      <Text style={styles.toggleButtonText}>{showNewPassword ? '○' : '●'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Confirm Password */}
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Confirmer le mot de passe</Text>
+                  <View style={[styles.passwordInputContainer, confirmPasswordFocused && styles.passwordInputContainerFocused]}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Confirmer le nouveau mot de passe"
+                      placeholderTextColor={COLORS.gray400}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      onFocus={() => setConfirmPasswordFocused(true)}
+                      onBlur={() => setConfirmPasswordFocused(false)}
+                      editable={!saving}
+                      secureTextEntry={!showConfirmPassword}
+                    />
+                    <TouchableOpacity
+                      style={styles.toggleButton}
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={saving}
+                    >
+                      <Text style={styles.toggleButtonText}>{showConfirmPassword ? '○' : '●'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text style={styles.infoText}>
+                  💡 Le mot de passe doit contenir au moins 6 caractères
+                </Text>
+              </ScrollView>
+
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton, saving && styles.cancelButtonDisabled]}
+                  onPress={() => {
+                    setChangePasswordModalVisible(false);
+                    resetPasswordForm();
+                  }}
+                  disabled={saving}
+                >
+                  <Text style={[styles.cancelButtonText, saving && styles.cancelButtonTextDisabled]}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.saveButton, saving && styles.saveButtonDisabled]}
+                  onPress={handleChangePassword}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <>
+                      <ActivityIndicator color={COLORS.white} size="small" />
+                      <Text style={[styles.saveButtonText, { marginLeft: 8 }]}>Changement...</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.saveButtonText}>Changer</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         <CustomAlert
           visible={alertConfig.visible}
@@ -534,13 +754,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.gray200,
     marginLeft: 68,
   },
-  dangerIcon: {
-    backgroundColor: COLORS.lightRed,
-  },
-  dangerText: {
-    color: COLORS.red,
-  },
-  // Bell Icon
   bellIcon: {
     width: 20,
     height: 20,
@@ -574,74 +787,6 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: COLORS.red,
   },
-  // User Icon
-  userIcon: {
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userHead: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.white,
-    marginBottom: 2,
-  },
-  userBody: {
-    width: 14,
-    height: 10,
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 7,
-    borderTopRightRadius: 7,
-  },
-  // List Icon
-  listIcon: {
-    width: 18,
-    height: 18,
-    justifyContent: 'space-between',
-    paddingVertical: 2,
-  },
-  listLine: {
-    width: 18,
-    height: 2,
-    backgroundColor: COLORS.white,
-    borderRadius: 1,
-  },
-  // Info Icon
-  infoIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: COLORS.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  infoText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.white,
-  },
-  // Doc Icon
-  docIcon: {
-    width: 16,
-    height: 20,
-  },
-  docBody: {
-    width: 16,
-    height: 20,
-    borderWidth: 2,
-    borderColor: COLORS.white,
-    borderRadius: 2,
-  },
-  docLines: {
-    position: 'absolute',
-    top: 6,
-    left: 4,
-    right: 4,
-  },
-  // Lock Icon
   lockIcon: {
     width: 16,
     height: 20,
@@ -668,27 +813,183 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 5,
     borderTopRightRadius: 5,
   },
-  // Trash Icon
-  trashIcon: {
+  infoIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoText: {
+    fontSize: 13,
+    color: COLORS.gray500,
+    marginTop: 12,
+    paddingHorizontal: 16,
+  },
+  docIcon: {
     width: 16,
     height: 20,
   },
-  trashLid: {
-    width: 18,
-    height: 3,
-    backgroundColor: COLORS.red,
-    borderRadius: 1,
-    marginBottom: 1,
-    alignSelf: 'center',
-  },
-  trashBody: {
-    width: 14,
-    height: 14,
+  docBody: {
+    width: 16,
+    height: 20,
     borderWidth: 2,
-    borderColor: COLORS.red,
-    borderTopWidth: 0,
+    borderColor: COLORS.white,
+    borderRadius: 2,
+  },
+  docLines: {
+    position: 'absolute',
+    top: 6,
+    left: 4,
+    right: 4,
+  },
+  securityIcon: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shieldBody: {
+    width: 16,
+    height: 18,
+    borderWidth: 2,
+    borderColor: COLORS.white,
     borderBottomLeftRadius: 3,
     borderBottomRightRadius: 3,
-    alignSelf: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: 24,
+    width: '85%',
+    maxHeight: '85%',
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.gray700,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.gray200,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseIcon: {
+    fontSize: 20,
+    color: COLORS.gray500,
+  },
+  modalScrollView: {
+    maxHeight: 400,
+    marginBottom: 16,
+  },
+  fieldContainer: {
+    marginBottom: 20,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.gray500,
+    marginBottom: 8,
+  },
+  passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.gray100,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderWidth: 2,
+    borderColor: COLORS.gray300,
+    height: 56,
+  },
+  passwordInputContainerFocused: {
+    borderColor: COLORS.darkTeal1,
+    backgroundColor: COLORS.white,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: COLORS.gray700,
+    paddingVertical: 14,
+  },
+  toggleButton: {
+    padding: 8,
+    marginLeft: 12,
+  },
+  toggleButtonText: {
+    fontSize: 18,
+    color: COLORS.darkTeal1,
+    fontWeight: '600',
+  },
+  errorContainer: {
+    backgroundColor: COLORS.lightRed,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.red,
+  },
+  errorText: {
+    color: COLORS.red,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: COLORS.gray200,
+  },
+  cancelButtonDisabled: {
+    opacity: 0.5,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.gray500,
+  },
+  cancelButtonTextDisabled: {
+    opacity: 0.6,
+  },
+  saveButton: {
+    backgroundColor: COLORS.darkTeal1,
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.white,
   },
 });

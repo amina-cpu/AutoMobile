@@ -45,7 +45,7 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [liked, setLiked] = useState({});
-  const [location, setLocation] = useState('Chargement...');
+  const [location, setLocation] = useState('Location');
   const [brands, setBrands] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [brandsLoading, setBrandsLoading] = useState(true);
@@ -445,7 +445,7 @@ export default function ExploreScreen() {
   };
 
   return (
-    <View style={styles.fullContainer}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
       
       {/* Header extends into status bar area */}
@@ -455,6 +455,7 @@ export default function ExploreScreen() {
             <Text style={styles.locationText}>{location} ▼</Text>
           </View>
           <TouchableOpacity
+            style={styles.notificationButton}
             onPress={() => router.push('/notification')}
           >
             <View style={styles.notificationIconContainer}>
@@ -481,8 +482,8 @@ export default function ExploreScreen() {
         </View>
       </View>
 
-      {/* Content area with safe area for bottom */}
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      {/* Content area */}
+      <View style={styles.contentContainer}>
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Marques</Text>
@@ -558,16 +559,12 @@ export default function ExploreScreen() {
             </View>
           )}
         </ScrollView>
-      </SafeAreaView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  fullContainer: {
-    flex: 1,
-    backgroundColor: COLORS.darkTeal1,
-  },
   container: {
     flex: 1,
     backgroundColor: COLORS.lightGray,
@@ -575,12 +572,18 @@ const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: COLORS.darkTeal1,
     paddingHorizontal: 20,
-    paddingTop: 50, // Increased to account for status bar
+    paddingTop: 10,
     paddingBottom: 20,
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: COLORS.lightGray,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop:30,
+    marginLeft:10,
     justifyContent: 'space-between',
     marginBottom: 12,
   },
@@ -589,9 +592,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   locationText: {
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: '600',
     color: COLORS.white,
+  },
+  notificationButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchRow: {
     flexDirection: 'row',
@@ -660,7 +671,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginTop: 20,
+    marginTop: 8,
     marginBottom: 12,
   },
   sectionTitle: {

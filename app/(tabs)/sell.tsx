@@ -22,11 +22,11 @@ const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 
 // COLORS - Dark Teal Theme
 const COLORS = {
-  darkTeal1: '#05696F',      // RGB(5, 59, 67) - Darkest
-  darkTeal2: '#064C53',      // RGB(6, 76, 83) - Dark
-  darkTeal3: '#05696F',      // RGB(5, 105, 111) - Medium
-  primaryGreen: '#05696F',   // RGB(65, 185, 117) - Primary accent
-  darkGreen: '#268865',      // RGB(38, 136, 101) - Secondary accent
+  darkTeal1: '#05696F',
+  darkTeal2: '#064C53',
+  darkTeal3: '#05696F',
+  primaryGreen: '#05696F',
+  darkGreen: '#268865',
   white: '#FFFFFF',
   black: '#000000',
   lightGray: '#f5f5f5',
@@ -50,12 +50,9 @@ export default function SellScreen() {
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   
-  const [photos, setPhotos] = useState({
-    cover: null,
-    front: null,
-    back: null,
-    interior: null,
-  });
+  // Updated: photos is now an array of URIs, supporting up to 50 images
+  const [photos, setPhotos] = useState([]);
+  const MAX_PHOTOS = 50;
   
   const [formData, setFormData] = useState({
     brand: '',
@@ -106,8 +103,14 @@ export default function SellScreen() {
     setModalVisible(false);
   };
 
-  const pickImage = async (photoType) => {
+  // Updated: Add photo to array
+  const pickImage = async () => {
     try {
+      if (photos.length >= MAX_PHOTOS) {
+        Alert.alert('Limite atteinte', `Vous pouvez ajouter jusqu'à ${MAX_PHOTOS} photos`);
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -116,25 +119,26 @@ export default function SellScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setPhotos(prev => ({ ...prev, [photoType]: result.assets[0].uri }));
+        setPhotos(prev => [...prev, result.assets[0].uri]);
       }
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de sélectionner l\'image');
     }
   };
 
-  const removePhoto = (photoType) => {
-    setPhotos(prev => ({ ...prev, [photoType]: null }));
+  // Updated: Remove photo from array by index
+  const removePhoto = (index) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  // FIXED: Upload single image to Supabase Storage using ArrayBuffer
-  const uploadImageToStorage = async (imageUri, carId, photoType, index) => {
+  // Upload single image to Supabase Storage using ArrayBuffer
+  const uploadImageToStorage = async (imageUri, carId, index) => {
     try {
-      console.log(`📤 Uploading ${photoType} to storage...`);
+      console.log(`📤 Uploading image ${index + 1} to storage...`);
       console.log(`🔗 Image URI: ${imageUri}`);
       
       // Create unique filename
-      const fileName = `${carId}_${photoType}_${Date.now()}.jpg`;
+      const fileName = `${carId}_${index}_${Date.now()}.jpg`;
       const filePath = `cars/${carId}/${fileName}`;
 
       console.log(`📁 File path: ${filePath}`);
@@ -154,24 +158,16 @@ export default function SellScreen() {
         });
 
       if (uploadError) {
-        console.error(`❌ Storage upload error for ${photoType}:`, uploadError);
+        console.error(`❌ Storage upload error for image ${index + 1}:`, uploadError);
         throw uploadError;
       }
 
-      console.log(`✅ ${photoType} uploaded to storage:`, uploadData.path);
-
-      // Get public URL using the file path (not full path)
-      const { data: publicUrlData } = supabase.storage
-        .from('car-images')
-        .getPublicUrl(filePath);
-
-      const publicUrl = publicUrlData.publicUrl;
-      console.log(`🔗 Public URL for ${photoType}:`, publicUrl);
+      console.log(`✅ Image ${index + 1} uploaded to storage:`, uploadData.path);
 
       // Return just the file path (for database storage)
       return filePath;
     } catch (error) {
-      console.error(`❌ Error uploading ${photoType}:`, error);
+      console.error(`❌ Error uploading image ${index + 1}:`, error);
       throw error;
     }
   };
@@ -179,7 +175,7 @@ export default function SellScreen() {
   // Save image record to database
   const saveImageToDatabase = async (carId, imagePath, displayOrder, accessToken) => {
     try {
-      console.log('💾 Saving image path to database...');
+      console.log(`💾 Saving image ${displayOrder + 1} path to database...`);
       console.log('🔗 Image path:', imagePath);
       
       const response = await fetch(
@@ -194,7 +190,7 @@ export default function SellScreen() {
           },
           body: JSON.stringify({
             car_id: carId,
-            image_url: imagePath, // Store the file path, not full URL
+            image_url: imagePath,
             display_order: displayOrder,
           })
         }
@@ -207,7 +203,7 @@ export default function SellScreen() {
       }
 
       const data = await response.json();
-      console.log('✅ Image saved to database:', data);
+      console.log(`✅ Image ${displayOrder + 1} saved to database:`, data);
       return data;
     } catch (error) {
       console.error('❌ Error saving to database:', error);
@@ -218,9 +214,8 @@ export default function SellScreen() {
   // Upload all images
   const uploadImages = async (carId, accessToken) => {
     console.log('📸 Starting image upload process...');
-    const photoEntries = Object.entries(photos).filter(([_, uri]) => uri);
-
-    if (photoEntries.length === 0) {
+    
+    if (photos.length === 0) {
       console.log('⚠️ No images to upload');
       return;
     }
@@ -228,18 +223,18 @@ export default function SellScreen() {
     let successCount = 0;
     let failCount = 0;
 
-    for (let i = 0; i < photoEntries.length; i++) {
+    for (let i = 0; i < photos.length; i++) {
       try {
-        const [photoType, imageUri] = photoEntries[i];
+        const imageUri = photos[i];
         
         // Step 1: Upload to Supabase Storage (returns file path)
-        const filePath = await uploadImageToStorage(imageUri, carId, photoType, i);
+        const filePath = await uploadImageToStorage(imageUri, carId, i);
         
         // Step 2: Save file path to database
         await saveImageToDatabase(carId, filePath, i, accessToken);
         
         successCount++;
-        console.log(`✅ Successfully processed ${photoType} (${successCount}/${photoEntries.length})`);
+        console.log(`✅ Successfully processed image ${i + 1} (${successCount}/${photos.length})`);
       } catch (error) {
         failCount++;
         console.error(`❌ Failed to process image ${i + 1}:`, error);
@@ -259,7 +254,7 @@ export default function SellScreen() {
   const validateStep = () => {
     switch (step) {
       case 1:
-        return photos.cover !== null;
+        return photos.length > 0; // At least 1 photo required
       case 2:
         return formData.brand && formData.model && formData.year;
       case 3:
@@ -345,7 +340,7 @@ export default function SellScreen() {
       console.log('✅ Car created with ID:', newCar.id);
 
       // Upload images to storage
-      if (Object.values(photos).some(p => p)) {
+      if (photos.length > 0) {
         await uploadImages(newCar.id, session.access_token);
       }
 
@@ -357,7 +352,7 @@ export default function SellScreen() {
             text: 'OK',
             onPress: () => {
               setStep(1);
-              setPhotos({ cover: null, front: null, back: null, interior: null });
+              setPhotos([]); // Reset to empty array
               setFormData({
                 brand: '',
                 model: '',
@@ -389,7 +384,7 @@ export default function SellScreen() {
           <View style={styles.stepContainer}>
             <Text style={styles.stepTitle}>Ajoutez des photos</Text>
             <Text style={styles.stepSubtitle}>
-              Ajoutez un maximum de photos pour augmenter le nombre de contacts
+              Ajoutez jusqu'à {MAX_PHOTOS} photos pour augmenter le nombre de contacts ({photos.length}/{MAX_PHOTOS})
             </Text>
 
             <Text style={styles.sectionLabel}>
@@ -397,41 +392,34 @@ export default function SellScreen() {
             </Text>
 
             <View style={styles.photoGrid}>
-              {[
-                { key: 'cover', label: 'Photo de couverture', icon: '📷' },
-                { key: 'front', label: '3/4 avant', icon: '🚗' },
-                { key: 'back', label: '3/4 arrière', icon: '🚗' },
-                { key: 'interior', label: 'Intérieur', icon: '🚗' }
-              ].map(({ key, label, icon }) => (
-                <TouchableOpacity
-                  key={key}
-                  style={[styles.photoBox, photos[key] && styles.photoBoxFilled]}
-                  onPress={() => pickImage(key)}
-                >
-                  {photos[key] ? (
-                    <>
-                      <Image source={{ uri: photos[key] }} style={styles.photoImage} />
-                      <View style={styles.photoLabel}>
-                        <Text style={styles.photoLabelText}>{label}</Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.removePhotoButton}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          removePhoto(key);
-                        }}
-                      >
-                        <Text style={styles.removePhotoText}>×</Text>
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <View style={styles.photoIconContainer}>
-                      <Text style={{ fontSize: 50, color: COLORS.darkTeal1 }}>{icon}</Text>
-                      <Text style={styles.photoText}>{label}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+              {/* Display existing photos */}
+              {photos.map((photoUri, index) => (
+                <View key={index} style={styles.photoBox}>
+                  <Image source={{ uri: photoUri }} style={styles.photoImage} />
+                  <View style={styles.photoLabel}>
+                    <Text style={styles.photoLabelText}>Photo {index + 1}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.removePhotoButton}
+                    onPress={() => removePhoto(index)}
+                  >
+                    <Text style={styles.removePhotoText}>×</Text>
+                  </TouchableOpacity>
+                </View>
               ))}
+
+              {/* Add photo button (show if under limit) */}
+              {photos.length < MAX_PHOTOS && (
+                <TouchableOpacity
+                  style={styles.addPhotoBox}
+                  onPress={pickImage}
+                >
+                  <View style={styles.photoIconContainer}>
+                    <Text style={styles.addPhotoIcon}>+</Text>
+                    <Text style={styles.addPhotoText}>Ajouter une photo</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         );
@@ -636,10 +624,10 @@ export default function SellScreen() {
             )}
 
             <ScrollView 
-  style={styles.modalList}
-  contentContainerStyle={styles.modalListContent}
-  showsVerticalScrollIndicator={false}
->
+              style={styles.modalList}
+              contentContainerStyle={styles.modalListContent}
+              showsVerticalScrollIndicator={false}
+            >
               {filteredModalData.map((item, index) => (
                 <TouchableOpacity
                   key={index}
@@ -742,15 +730,21 @@ const styles = StyleSheet.create({
     aspectRatio: 1, 
     backgroundColor: COLORS.white, 
     borderRadius: 16, 
+    borderWidth: 3, 
+    borderColor: COLORS.primaryGreen, 
+    overflow: 'hidden' 
+  },
+  addPhotoBox: { 
+    width: (width - 52) / 2, 
+    aspectRatio: 1, 
+    backgroundColor: COLORS.white, 
+    borderRadius: 16, 
     borderWidth: 2, 
     borderColor: COLORS.darkTeal1, 
+    borderStyle: 'dashed',
     justifyContent: 'center', 
     alignItems: 'center', 
     overflow: 'hidden' 
-  },
-  photoBoxFilled: { 
-    borderWidth: 3,
-    borderColor: COLORS.primaryGreen
   },
   photoImage: { 
     width: '100%', 
@@ -776,7 +770,12 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     padding: 16 
   },
-  photoText: { 
+  addPhotoIcon: {
+    fontSize: 50,
+    color: COLORS.darkTeal1,
+    fontWeight: '300',
+  },
+  addPhotoText: { 
     fontSize: 12, 
     fontWeight: '600', 
     color: COLORS.darkTeal1, 
@@ -854,8 +853,8 @@ const styles = StyleSheet.create({
     maxHeight: '80%' 
   },
   modalListContent: {
-  paddingBottom: 40  // Extra space at bottom so last items are visible
-},
+    paddingBottom: 40
+  },
   modalHandle: { 
     width: 40, 
     height: 4, 

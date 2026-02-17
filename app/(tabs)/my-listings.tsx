@@ -3,17 +3,17 @@ import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Modal,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    Modal,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/config/supabase';
@@ -78,7 +78,7 @@ export default function MyListingsScreen() {
       let { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
-        setLocation('Algérie');
+        setLocation('Location');
         return;
       }
 
@@ -95,14 +95,14 @@ export default function MyListingsScreen() {
 
       if (reverseGeocode && reverseGeocode.length > 0) {
         const address = reverseGeocode[0];
-        const city = address.city || address.subregion || address.region || 'Algérie';
+        const city = address.city || address.subregion || address.region || 'Location';
         setLocation(city);
       } else {
-        setLocation('Algérie');
+        setLocation('Location');
       }
     } catch (error) {
       console.error('Erreur de localisation:', error);
-      setLocation('Algérie');
+      setLocation('Location');
     }
   };
 

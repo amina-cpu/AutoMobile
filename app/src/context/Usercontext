@@ -42,6 +42,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('👤 [UserContext] Auth event:', event);
+
+      // ✅ FIX: IGNORE USER_UPDATED EVENT (password change)
+      if (event === 'USER_UPDATED') {
+        console.log('⏭️ [UserContext] Password changed - ignoring');
+        return; // Don't reload on password change
+      }
+
       if (session?.user) {
         setUserId(session.user.id);
         const { data } = await supabase

@@ -208,7 +208,7 @@ export default function ProductDetailScreen() {
 
       // Fetch similar cars (same seller)
       if (carInfo.seller_id) {
-        console.log('🚗 Fetching similar cars...');
+        console.log(' Fetching similar cars...');
         try {
           const similarResponse = await fetch(
             `${SUPABASE_URL}/rest/v1/cars?select=*,car_images(*)&seller_id=eq.${carInfo.seller_id}&id=neq.${carId}&limit=5`,
@@ -491,8 +491,8 @@ export default function ProductDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primaryGreen} />
-        <Text style={{ marginTop: 12, color: COLORS.gray500 }}>Chargement...</Text>
+        <ActivityIndicator size="large" color={COLORS.darkTeal1} />
+        <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
   }
@@ -500,12 +500,13 @@ export default function ProductDetailScreen() {
   if (error || !car) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error || 'Car not found'}</Text>
+        <Text style={styles.errorEmoji}>😔</Text>
+        <Text style={styles.errorText}>{error || 'Voiture non trouvée'}</Text>
         <TouchableOpacity 
           onPress={() => router.back()} 
-          style={{ marginTop: 20, backgroundColor: COLORS.darkTeal1, padding: 12, borderRadius: 8 }}
+          style={styles.errorButton}
         >
-          <Text style={{ color: COLORS.white, fontWeight: 'bold' }}>← Retour</Text>
+          <Text style={styles.errorButtonText}>← Retour</Text>
         </TouchableOpacity>
       </View>
     );
@@ -515,23 +516,28 @@ export default function ProductDetailScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.darkTeal1} translucent />
       
-      <View style={styles.themeHeader}>
-        <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
-          <Text style={styles.headerBackText}>‹</Text>
+      {/* Floating Header with absolute position */}
+      <View style={styles.floatingHeader}>
+        <TouchableOpacity style={styles.headerIconButton} onPress={() => router.back()}>
+          <Text style={styles.headerIconText}>‹</Text>
         </TouchableOpacity>
         
         <View style={styles.headerRight}>
+          {/* <TouchableOpacity style={styles.headerIconButton} onPress={handleShare}>
+            <Text style={styles.headerIconText}>⤴</Text>
+          </TouchableOpacity> */}
           <TouchableOpacity 
-            style={styles.headerButton}
+            style={styles.headerIconButton}
             onPress={handleLikeToggle}
           >
-            <Text style={{ fontSize: 16 }}>{liked ? '❤️' : '🤍'}</Text>
+            <Text style={styles.headerIconText}>{liked ? '❤️' : '🤍'}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.imageContainer}>
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+        {/* Full Width Image Gallery */}
+        <View style={styles.imageGallery}>
           {carImages.length > 0 ? (
             <Image 
               source={{ uri: carImages[currentImageIndex].displayUrl }} 
@@ -539,8 +545,8 @@ export default function ProductDetailScreen() {
               onError={(e) => console.error('Image load error:', e.nativeEvent.error)}
             />
           ) : (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ fontSize: 80 }}>🚗</Text>
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imagePlaceholderIcon}>🚗</Text>
             </View>
           )}
 
@@ -561,196 +567,237 @@ export default function ProductDetailScreen() {
               >
                 <Text style={styles.navButtonText}>›</Text>
               </TouchableOpacity>
+
+              {/* Image Counter */}
+              <View style={styles.imageCounter}>
+                <Text style={styles.imageCounterText}>
+                  {currentImageIndex + 1}/{carImages.length}
+                </Text>
+              </View>
             </>
           )}
         </View>
 
-        <View style={styles.carInfoCard}>
-          <View style={styles.carInfoRow}>
-            {carImages.length > 0 && (
-              <Image 
-                source={{ uri: carImages[0].displayUrl }} 
-                style={styles.carImageThumb} 
-              />
-            )}
-            <View style={styles.carInfoContent}>
-              <View>
-                <Text style={styles.carTitle}>{car.brand} {car.model}</Text>
-                <Text style={styles.carSubtitle}>
-                  {car.year} · {car.mileage} km · {car.fuel_type}
-                </Text>
+        {/* Main Content Card */}
+        <View style={styles.contentCard}>
+          {/* Title and Price Section */}
+          <View style={styles.titleSection}>
+            <View style={styles.titleRow}>
+              <View style={styles.titleContent}>
+                <Text style={styles.carBrand}>{car.brand}</Text>
+                <Text style={styles.carModel}>{car.model}</Text>
               </View>
-              <Text style={styles.price}>{car.price} €</Text>
-            </View>
-          </View>
-        </View>
-
-        {isOwner && (
-          <View style={styles.ownerActionsContainer}>
-            <TouchableOpacity 
-              style={styles.editButton} 
-              onPress={handleEditProduct}
-              disabled={deleting}
-            >
-              <Text style={styles.editButtonText}>✏️ Modifier</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]} 
-              onPress={handleDeleteProduct}
-              disabled={deleting}
-            >
-              {deleting ? (
-                <ActivityIndicator size="small" color={COLORS.white} />
-              ) : (
-                <Text style={styles.deleteButtonText}>🗑️ Supprimer</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {recommendedCars.length > 0 && (
-          <View style={styles.recommendedSection}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleWithArrow}>
-                <Text style={styles.sectionTitle}>Ces annonces peuvent vous intéresser</Text>
-                <Text style={{ fontSize: 18, color: COLORS.gray400 }}>›</Text>
+              <View style={styles.priceContainer}>
+                <Text style={styles.priceLabel}>Prix</Text>
+                <Text style={styles.price}>{car.price.toLocaleString('fr-FR')} €</Text>
               </View>
             </View>
-            <FlatList
-              horizontal
-              data={recommendedCars}
-              renderItem={({ item }) => {
-                const firstImageUrl = item.car_images && item.car_images.length > 0 
-                  ? getImageUrl(item.car_images[0].image_url)
-                  : null;
-
-                return (
-                  <TouchableOpacity 
-                    style={styles.recommendedCard}
-                    onPress={() => {
-                      router.push({
-                        pathname: '/(tabs)/product-detail',
-                        params: { carId: item.id }
-                      });
-                    }}
-                  >
-                    {firstImageUrl ? (
-                      <View style={styles.recommendedImage}>
-                        <Image
-                          source={{ uri: firstImageUrl }}
-                          style={{ width: '100%', height: '100%' }}
-                          resizeMode="cover"
-                        />
-                      </View>
-                    ) : (
-                      <View style={[styles.recommendedImage, { justifyContent: 'center', alignItems: 'center' }]}>
-                        <Text style={{ fontSize: 50 }}>🚗</Text>
-                      </View>
-                    )}
-                    <View style={styles.recommendedContent}>
-                      <Text style={styles.recommendedTitle}>{item.brand} {item.model}</Text>
-                      <Text style={styles.recommendedSubtitle}>
-                        {item.year} • {item.mileage} km • {item.fuel_type}
-                      </Text>
-                      <Text style={styles.recommendedPrice}>{item.price} €</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              }}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScroll}
-            />
+            
+            {/* Quick Specs Pills */}
+            <View style={styles.quickSpecs}>
+              <View style={styles.specPill}>
+                <Text style={styles.specPillText}> {car.year}</Text>
+              </View>
+              <View style={styles.specPill}>
+                <Text style={styles.specPillText}> {car.mileage.toLocaleString('fr-FR')} km</Text>
+              </View>
+              <View style={styles.specPill}>
+                <Text style={styles.specPillText}> {car.fuel_type}</Text>
+              </View>
+            </View>
           </View>
-        )}
 
-        {seller && (
-          <TouchableOpacity 
-            style={styles.sellerSection}
-            onPress={handleSellerProfileClick}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.sectionTitle}>Vendu par</Text>
-            <View style={{ height: 12 }} />
-            <View style={styles.sellerCard}>
-              <View style={styles.sellerInfo}>
+          {/* Owner Actions */}
+          {isOwner && (
+            <View style={styles.ownerActionsContainer}>
+              <TouchableOpacity 
+                style={styles.editButton} 
+                onPress={handleEditProduct}
+                disabled={deleting}
+              >
+                <Text style={styles.editButtonIcon}></Text>
+                <Text style={styles.editButtonText}>Modifier</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]} 
+                onPress={handleDeleteProduct}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <>
+                    <Text style={styles.deleteButtonIcon}></Text>
+                    <Text style={styles.deleteButtonText}>Supprimer</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Description Section */}
+          {car.description && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}> Description</Text>
+              <Text style={styles.descriptionText}>{car.description}</Text>
+            </View>
+          )}
+
+          {/* Seller Section */}
+          {seller && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}> Vendu par</Text>
+              <TouchableOpacity 
+                style={styles.sellerCard}
+                onPress={handleSellerProfileClick}
+                activeOpacity={0.7}
+              >
                 <View style={styles.sellerAvatar}>
                   {sellerAvatarUrl ? (
                     <Image 
                       source={{ uri: sellerAvatarUrl }} 
                       style={styles.sellerAvatarImage}
-                      onError={(e) => {
-                        console.error('❌ Seller avatar load error:', e.nativeEvent.error);
-                        console.log('🔗 Tried loading:', sellerAvatarUrl);
-                      }}
-                      onLoad={() => console.log('✅ Seller avatar loaded')}
+                      onError={(e) => console.error('❌ Seller avatar load error:', e.nativeEvent.error)}
                     />
                   ) : (
                     <Text style={styles.sellerAvatarText}>{getInitials(seller.full_name || seller.email)}</Text>
                   )}
                 </View>
-                <View style={styles.sellerDetails}>
+                <View style={styles.sellerInfo}>
                   <Text style={styles.sellerName}>{seller.full_name || 'Utilisateur'}</Text>
                   <View style={styles.sellerRating}>
-                    <Text style={styles.star}>★</Text>
-                    <Text style={styles.ratingText}>{sellerStats?.rating} ({sellerStats?.reviews})</Text>
+                    {/* <Text style={styles.star}></Text>
+                    <Text style={styles.ratingText}>{sellerStats?.rating} ({sellerStats?.reviews} avis)</Text> */}
                   </View>
-                  <Text style={styles.sellerMeta}>📧 {seller.email}</Text>
+                  <Text style={styles.sellerEmail}>{seller.email}</Text>
+                </View>
+                <View style={styles.sellerArrow}>
+                  <Text style={styles.arrowText}></Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Specifications Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}> Caractéristiques</Text>
+            <View style={styles.specsGrid}>
+              <View style={styles.specItem}>
+                <Text style={styles.specIcon}></Text>
+                <View style={styles.specContent}>
+                  <Text style={styles.specLabel}>Marque</Text>
+                  <Text style={styles.specValue}>{car.brand}</Text>
                 </View>
               </View>
-              <View style={styles.profileArrow}>
-                <Text style={styles.arrowText}>›</Text>
+              <View style={styles.specItem}>
+                <Text style={styles.specIcon}></Text>
+                <View style={styles.specContent}>
+                  <Text style={styles.specLabel}>Modèle</Text>
+                  <Text style={styles.specValue}>{car.model}</Text>
+                </View>
+              </View>
+              <View style={styles.specItem}>
+                <Text style={styles.specIcon}></Text>
+                <View style={styles.specContent}>
+                  <Text style={styles.specLabel}>Année</Text>
+                  <Text style={styles.specValue}>{car.year}</Text>
+                </View>
+              </View>
+              <View style={styles.specItem}>
+                <Text style={styles.specIcon}></Text>
+                <View style={styles.specContent}>
+                  <Text style={styles.specLabel}>Kilométrage</Text>
+                  <Text style={styles.specValue}>{car.mileage.toLocaleString('fr-FR')} km</Text>
+                </View>
+              </View>
+              <View style={styles.specItem}>
+                <Text style={styles.specIcon}></Text>
+                <View style={styles.specContent}>
+                  <Text style={styles.specLabel}>Énergie</Text>
+                  <Text style={styles.specValue}>{car.fuel_type}</Text>
+                </View>
+              </View>
+              <View style={styles.specItem}>
+                <Text style={styles.specIcon}></Text>
+                <View style={styles.specContent}>
+                  <Text style={styles.specLabel}>Transmission</Text>
+                  <Text style={styles.specValue}>{car.transmission}</Text>
+                </View>
               </View>
             </View>
-          </TouchableOpacity>
-        )}
+          </View>
 
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Les informations clés</Text>
-          <View style={{ height: 8 }} />
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>🏷️ Marque</Text>
-            <Text style={styles.infoValue}>{car.brand}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>🚙 Modèle</Text>
-            <Text style={styles.infoValue}>{car.model}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>📅 Année</Text>
-            <Text style={styles.infoValue}>{car.year}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>🛣️ Kilométrage</Text>
-            <Text style={styles.infoValue}>{car.mileage} km</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>⚡ Énergie</Text>
-            <Text style={styles.infoValue}>{car.fuel_type}</Text>
-          </View>
-          <View style={[styles.infoRow, styles.infoRowLast]}>
-            <Text style={styles.infoLabel}>⚙️ Boîte</Text>
-            <Text style={styles.infoValue}>{car.transmission}</Text>
-          </View>
+          {/* Recommended Cars Section */}
+          {recommendedCars.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}> Annonces similaires</Text>
+              <FlatList
+                horizontal
+                data={recommendedCars}
+                renderItem={({ item }) => {
+                  const firstImageUrl = item.car_images && item.car_images.length > 0 
+                    ? getImageUrl(item.car_images[0].image_url)
+                    : null;
+
+                  return (
+                    <TouchableOpacity 
+                      style={styles.recommendedCard}
+                      onPress={() => {
+                        router.push({
+                          pathname: '/(tabs)/product-detail',
+                          params: { carId: item.id }
+                        });
+                      }}
+                    >
+                      <View style={styles.recommendedImageContainer}>
+                        {firstImageUrl ? (
+                          <Image
+                            source={{ uri: firstImageUrl }}
+                            style={styles.recommendedImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={styles.recommendedImagePlaceholder}>
+                            <Text style={styles.recommendedImagePlaceholderIcon}>🚗</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.recommendedContent}>
+                        <Text style={styles.recommendedTitle} numberOfLines={1}>
+                          {item.brand} {item.model}
+                        </Text>
+                        <Text style={styles.recommendedSubtitle} numberOfLines={1}>
+                          {item.year} • {item.mileage.toLocaleString('fr-FR')} km
+                        </Text>
+                        <Text style={styles.recommendedPrice}>
+                          {item.price.toLocaleString('fr-FR')} €
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+                keyExtractor={(item) => item.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.recommendedList}
+              />
+            </View>
+          )}
+
+          <View style={{ height: 20 }} />
         </View>
-
-        {car.description && (
-          <View style={styles.descriptionSection}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <View style={{ height: 8 }} />
-            <Text style={styles.descriptionText}>{car.description}</Text>
-          </View>
-        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Bottom Action Buttons */}
       {!isOwner && (
-        <View style={styles.bottomButtons}>
+        <View style={styles.bottomActions}>
           <TouchableOpacity style={styles.phoneButton} onPress={handlePhonePress}>
-            <Text style={styles.phoneButtonText}>Voir le numéro</Text>
+            <Text style={styles.phoneButtonIcon}></Text>
+            <Text style={styles.phoneButtonText}>Appeler</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.messageButton}>
+            <Text style={styles.messageButtonIcon}></Text>
             <Text style={styles.messageButtonText}>Message</Text>
           </TouchableOpacity>
         </View>
@@ -765,6 +812,7 @@ export default function ProductDetailScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalIcon}>🗑️</Text>
             <Text style={styles.deleteTitle}>Supprimer l'annonce</Text>
             <Text style={styles.deleteMessage}>
               Êtes-vous sûr de vouloir supprimer cette annonce ? Cette action est irréversible.
@@ -801,82 +849,575 @@ export default function ProductDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.lightGray},
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
-  errorText: { fontSize: 18, color: '#ef4444', textAlign: 'center', marginBottom: 20 },
-  themeHeader: { backgroundColor: COLORS.darkTeal1, paddingHorizontal: 20, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 50 },
-  headerBackButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
-  headerBackText: { fontSize: 24, color: COLORS.white, fontWeight: 'bold' },
-  headerRight: { flexDirection: 'row', gap: 8 },
-  headerButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: 4 },
-  likeCount: { fontSize: 12, fontWeight: '700', color: COLORS.white },
-  imageContainer: { height: 300, backgroundColor: COLORS.black, position: 'relative', overflow: 'hidden', marginTop: 0 },
-  carImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  navButton: { position: 'absolute', top: '50%', width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.9)', justifyContent: 'center', alignItems: 'center', marginTop: -20, shadowColor: COLORS.black, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, elevation: 5 },
-  navButtonLeft: { left: 12 },
-  navButtonRight: { right: 12 },
-  navButtonText: { fontSize: 20, color: COLORS.black, fontWeight: 'bold' },
-  carInfoCard: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray300, marginHorizontal: 20, marginTop: 20, borderRadius: 12 },
-  carInfoRow: { flexDirection: 'row', gap: 12 },
-  carImageThumb: { width: 80, height: 80, borderRadius: 8, backgroundColor: COLORS.gray200 },
-  carInfoContent: { flex: 1, justifyContent: 'space-between' },
-  carTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray700, marginBottom: 4 },
-  carSubtitle: { fontSize: 12, color: COLORS.gray500, marginBottom: 8, lineHeight: 18 },
-  price: { fontSize: 20, fontWeight: '700', color: COLORS.primaryGreen },
-  ownerActionsContainer: { paddingHorizontal: 20, paddingVertical: 12, gap: 8, flexDirection: 'row' },
-  editButton: { flex: 1, backgroundColor: COLORS.darkTeal1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  editButtonText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
-  deleteButton: { flex: 1, backgroundColor: '#ef4444', paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  deleteButtonDisabled: { opacity: 0.6 },
-  deleteButtonText: { fontSize: 14, fontWeight: '700', color: COLORS.white },
-  recommendedSection: { backgroundColor: COLORS.white, marginBottom: 12, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray300 },
-  sectionHeader: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray700 },
-  sectionTitleWithArrow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  horizontalScroll: { paddingHorizontal: 16, paddingVertical: 12 },
-  recommendedCard: { width: 240, marginRight: 12, borderRadius: 8, borderWidth: 1, borderColor: COLORS.gray300, backgroundColor: COLORS.white, overflow: 'hidden' },
-  recommendedImage: { width: '100%', height: 140, backgroundColor: COLORS.gray200, position: 'relative' },
-  recommendedContent: { padding: 10 },
-  recommendedTitle: { fontSize: 13, fontWeight: '700', color: COLORS.gray700, marginBottom: 4 },
-  recommendedSubtitle: { fontSize: 11, color: COLORS.gray500, marginBottom: 8 },
-  recommendedPrice: { fontSize: 15, fontWeight: '700', color: COLORS.primaryGreen, marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: COLORS.gray200 },
-  sellerSection: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray300, marginBottom: 12 },
-  sellerCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  sellerInfo: { flexDirection: 'row', flex: 1, gap: 12 },
-  sellerAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.darkTeal1, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  sellerAvatarImage: { width: '100%', height: '100%' },
-  sellerAvatarText: { fontSize: 18, color: COLORS.white, fontWeight: '700' },
-  sellerDetails: { flex: 1 },
-  sellerName: { fontSize: 13, fontWeight: '700', color: COLORS.gray700, marginBottom: 4 },
-  sellerRating: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
-  star: { fontSize: 12, color: '#f59e0b' },
-  ratingText: { fontSize: 11, color: COLORS.gray500 },
-  sellerMeta: { fontSize: 10, color: COLORS.gray500, lineHeight: 14 },
-  profileArrow: { justifyContent: 'center', alignItems: 'center', paddingLeft: 12 },
-  arrowText: { fontSize: 16, color: COLORS.gray400, fontWeight: 'bold' },
-  infoSection: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray300, marginBottom: 12 },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray200 },
-  infoRowLast: { borderBottomWidth: 0 },
-  infoLabel: { fontSize: 12, color: COLORS.gray500, fontWeight: '500' },
-  infoValue: { fontSize: 12, color: COLORS.gray700, fontWeight: '700' },
-  descriptionSection: { backgroundColor: COLORS.white, paddingHorizontal: 16, paddingVertical: 16, marginHorizontal: 20, marginTop: 20, borderRadius: 12, borderBottomWidth: 1, borderBottomColor: COLORS.gray300, marginBottom: 12 },
-  descriptionText: { fontSize: 13, color: COLORS.gray500, lineHeight: 20 },
-  bottomButtons: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.gray300, shadowColor: COLORS.black, shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 5 },
-  phoneButton: { flex: 1, paddingVertical: 14, borderWidth: 2, borderColor: COLORS.darkTeal1, borderRadius: 8, alignItems: 'center' },
-  phoneButtonText: { fontSize: 14, color: COLORS.darkTeal1, fontWeight: '700' },
-  messageButton: { flex: 1, paddingVertical: 14, backgroundColor: COLORS.darkTeal1, borderRadius: 8, alignItems: 'center' },
-  messageButtonText: { fontSize: 14, color: COLORS.white, fontWeight: '700' },
+  container: { 
+    flex: 1, 
+    backgroundColor: COLORS.gray100 
+  },
+  scrollView: {
+    flex: 1,
+  },
+  loadingContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.gray500,
+    fontWeight: '500',
+  },
+  errorContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    paddingHorizontal: 40,
+    backgroundColor: COLORS.white,
+  },
+  errorEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  errorText: { 
+    fontSize: 18, 
+    color: COLORS.gray700, 
+    textAlign: 'center', 
+    marginBottom: 24,
+    lineHeight: 26,
+  },
+  errorButton: {
+    backgroundColor: COLORS.darkTeal1,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  errorButtonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
   
-  // Delete Modal Styles
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', justifyContent: 'center', alignItems: 'center' },
-  deleteModalContent: { backgroundColor: COLORS.white, borderRadius: 20, padding: 24, width: '80%', alignItems: 'center' },
-  deleteTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray700, marginBottom: 8, textAlign: 'center' },
-  deleteMessage: { fontSize: 14, color: COLORS.gray500, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
-  deleteButtonContainer: { flexDirection: 'row', gap: 12, width: '100%' },
-  deleteModalButton: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  cancelDeleteButton: { backgroundColor: COLORS.gray200 },
-  confirmDeleteButton: { backgroundColor: '#ef4444' },
-  cancelDeleteText: { fontSize: 14, fontWeight: '600', color: COLORS.gray500 },
-  confirmDeleteText: { fontSize: 14, fontWeight: '600', color: COLORS.white },
+  // Floating Header
+  floatingHeader: { 
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    zIndex: 10,
+  },
+  headerIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  headerIconText: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  
+  // Image Gallery
+  imageGallery: { 
+    height: 380, 
+    backgroundColor: COLORS.black,
+    position: 'relative',
+  },
+  carImage: { 
+    width: '100%', 
+    height: '100%',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.gray200,
+  },
+  imagePlaceholderIcon: {
+    fontSize: 100,
+  },
+  navButton: { 
+    position: 'absolute', 
+    top: '50%', 
+    width: 44, 
+    height: 44, 
+    borderRadius: 22, 
+    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginTop: -22,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  navButtonLeft: { left: 16 },
+  navButtonRight: { right: 16 },
+  navButtonText: { 
+    fontSize: 24, 
+    color: COLORS.gray700, 
+    fontWeight: 'bold',
+  },
+  imageCounter: { 
+    position: 'absolute', 
+    bottom: 20, 
+    right: 16, 
+    backgroundColor: 'rgba(0, 0, 0, 0.75)', 
+    paddingHorizontal: 14, 
+    paddingVertical: 8, 
+    borderRadius: 20,
+  },
+  imageCounterText: { 
+    color: COLORS.white, 
+    fontSize: 13, 
+    fontWeight: '700',
+  },
+  
+  // Main Content Card
+  contentCard: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -20,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+  },
+  
+  // Title Section
+  titleSection: {
+    marginBottom: 20,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  titleContent: {
+    flex: 1,
+  },
+  carBrand: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.gray500,
+    marginBottom: 4,
+  },
+  carModel: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: COLORS.gray700,
+  },
+  priceContainer: {
+    alignItems: 'flex-end',
+  },
+  priceLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.gray500,
+    marginBottom: 2,
+  },
+  price: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.darkTeal1,
+  },
+  quickSpecs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  specPill: {
+    backgroundColor: COLORS.gray100,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.gray300,
+  },
+  specPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.gray700,
+  },
+  
+  // Owner Actions
+  ownerActionsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  editButton: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: COLORS.darkTeal1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: COLORS.darkTeal1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  editButtonIcon: {
+    fontSize: 16,
+  },
+  editButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  deleteButton: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#ef4444',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  deleteButtonDisabled: {
+    opacity: 0.6,
+  },
+  deleteButtonIcon: {
+    fontSize: 16,
+  },
+  deleteButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  
+  // Sections
+  section: {
+    marginBottom: 28,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.gray700,
+    marginBottom: 16,
+  },
+  
+  // Description
+  descriptionText: {
+    fontSize: 15,
+    color: COLORS.gray600,
+    lineHeight: 24,
+  },
+  
+  // Seller Card
+  sellerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.gray100,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.gray300,
+  },
+  sellerAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.darkTeal1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    marginRight: 14,
+  },
+  sellerAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  sellerAvatarText: {
+    fontSize: 20,
+    color: COLORS.white,
+    fontWeight: '700',
+  },
+  sellerInfo: {
+    flex: 1,
+  },
+  sellerName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.gray700,
+    marginBottom: 4,
+  },
+  sellerRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  star: {
+    fontSize: 14,
+  },
+  ratingText: {
+    fontSize: 13,
+    color: COLORS.gray600,
+    fontWeight: '500',
+  },
+  sellerEmail: {
+    fontSize: 12,
+    color: COLORS.gray500,
+  },
+  sellerArrow: {
+    marginLeft: 8,
+  },
+  arrowText: {
+    fontSize: 24,
+    color: COLORS.gray400,
+    fontWeight: 'bold',
+  },
+  
+  // Specifications Grid
+  specsGrid: {
+    gap: 12,
+  },
+  specItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.gray100,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.gray300,
+  },
+  specIcon: {
+    fontSize: 24,
+    marginRight: 14,
+  },
+  specContent: {
+    flex: 1,
+  },
+  specLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.gray500,
+    marginBottom: 2,
+  },
+  specValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.gray700,
+  },
+  
+  // Recommended Cars
+  recommendedList: {
+    paddingRight: 20,
+  },
+  recommendedCard: {
+    width: 200,
+    marginRight: 12,
+    borderRadius: 16,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.gray300,
+    overflow: 'hidden',
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  recommendedImageContainer: {
+    width: '100%',
+    height: 140,
+    backgroundColor: COLORS.gray200,
+  },
+  recommendedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  recommendedImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recommendedImagePlaceholderIcon: {
+    fontSize: 48,
+  },
+  recommendedContent: {
+    padding: 12,
+  },
+  recommendedTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.gray700,
+    marginBottom: 4,
+  },
+  recommendedSubtitle: {
+    fontSize: 12,
+    color: COLORS.gray500,
+    marginBottom: 8,
+  },
+  recommendedPrice: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.darkTeal1,
+  },
+  
+  // Bottom Actions
+  bottomActions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: COLORS.white,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray300,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  phoneButton: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 16,
+    borderWidth: 2,
+    borderColor: COLORS.darkTeal1,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  phoneButtonIcon: {
+    fontSize: 18,
+  },
+  phoneButtonText: {
+    fontSize: 15,
+    color: COLORS.darkTeal1,
+    fontWeight: '700',
+  },
+  messageButton: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 16,
+    backgroundColor: COLORS.darkTeal1,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: COLORS.darkTeal1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  messageButtonIcon: {
+    fontSize: 18,
+  },
+  messageButtonText: {
+    fontSize: 15,
+    color: COLORS.white,
+    fontWeight: '700',
+  },
+  
+  // Delete Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: COLORS.white,
+    borderRadius: 24,
+    padding: 28,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  deleteModalIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  deleteTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.gray700,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  deleteMessage: {
+    fontSize: 15,
+    color: COLORS.gray600,
+    textAlign: 'center',
+    marginBottom: 28,
+    lineHeight: 22,
+  },
+  deleteButtonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  deleteModalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelDeleteButton: {
+    backgroundColor: COLORS.gray200,
+    borderWidth: 1,
+    borderColor: COLORS.gray300,
+  },
+  confirmDeleteButton: {
+    backgroundColor: '#ef4444',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cancelDeleteText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.gray600,
+  },
+  confirmDeleteText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
 });

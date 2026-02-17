@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Dimensions,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -40,7 +41,7 @@ const COLORS = {
 };
 
 const redirectUri = AuthSession.makeRedirectUri({
-  scheme: 'automobile',
+  scheme: 'vcar',
   path: 'auth/callback',
 });
 
@@ -53,6 +54,25 @@ export default function AuthScreen() {
   const [phone, setPhone] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  
+  // Focus states for inputs
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
+  const [phoneFocused, setPhoneFocused] = useState(false);
+  
+  // Password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Custom Alert States
+  const [customAlertVisible, setCustomAlertVisible] = useState(false);
+  const [customAlertConfig, setCustomAlertConfig] = useState({
+    title: '',
+    message: '',
+    onConfirm: null,
+    onCancel: null,
+  });
 
   useEffect(() => {
     console.log('🔗 [AuthScreen] Redirect URI:', redirectUri);
@@ -85,7 +105,7 @@ export default function AuthScreen() {
         avatar_url: null
       };
 
-      console.log('📤 [AuthScreen] Envoi des données du profil:', profileData);
+      console.log('📤 [AuthScreen] Envoi des données du profil');
       
       const { data, error } = await supabase
         .from('users')
@@ -94,23 +114,93 @@ export default function AuthScreen() {
         .maybeSingle();
 
       if (error) {
-        console.error('❌ [AuthScreen] Erreur Supabase lors de l\'insertion:', error);
-        
+        // ✅ HANDLE DUPLICATE EMAIL (23505 constraint violation) - NO ERROR LOG
         if (error.code === '23505') {
-          console.log('✅ [AuthScreen] Le profil existe déjà (contrainte unique)');
-          return { success: true, existed: true };
+          console.log('⚠️ [AuthScreen] Le compte existe déjà (contrainte unique)');
+          
+          setLoading(false);
+          showCustomAlert(
+            'Compte Existant',
+            `Veuillez vous connecter avec vos identifiants.`,
+            () => {
+              console.log('✅ Redirection vers la page de connexion');
+              setIsSignUp(false);
+              setError(null);
+              setPassword('');
+              setConfirmPassword('');
+              setPhone('');
+            },
+            () => {
+              console.log('❌ Utilisateur a annulé');
+              setError(null);
+            }
+          );
+          
+          return { success: false, duplicate: true };
         }
         
+        // Only log other errors
+        console.error('❌ [AuthScreen] Erreur Supabase lors de l\'insertion:', error);
         throw new Error(`Impossible de créer le profil: ${error.message}`);
       }
 
-      console.log('✅ [AuthScreen] Profil utilisateur créé (incomplete):', data);
+      console.log('✅ [AuthScreen] Profil utilisateur créé');
       return { success: true, data };
     } catch (error) {
       console.error('❌ [AuthScreen] Erreur de création du profil:', error);
       throw error;
     }
   };
+
+  // Custom Alert Function
+  const showCustomAlert = (title, message, onConfirm, onCancel) => {
+    setCustomAlertConfig({
+      title,
+      message,
+      onConfirm,
+      onCancel,
+    });
+    setCustomAlertVisible(true);
+  };
+
+  // Custom Alert Modal Component
+  const CustomAlertModal = () => (
+    <Modal
+      visible={customAlertVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setCustomAlertVisible(false)}
+    >
+      <View style={styles.customAlertOverlay}>
+        <View style={styles.customAlertBox}>
+          <Text style={styles.customAlertTitle}>{customAlertConfig.title}</Text>
+          <Text style={styles.customAlertMessage}>{customAlertConfig.message}</Text>
+          
+          <View style={styles.customAlertButtonContainer}>
+            <TouchableOpacity
+              style={[styles.customAlertButton, styles.customAlertCancelButton]}
+              onPress={() => {
+                setCustomAlertVisible(false);
+                customAlertConfig.onCancel?.();
+              }}
+            >
+              <Text style={styles.customAlertCancelText}>Annuler</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.customAlertButton, styles.customAlertConfirmButton]}
+              onPress={() => {
+                setCustomAlertVisible(false);
+                customAlertConfig.onConfirm?.();
+              }}
+            >
+              <Text style={styles.customAlertConfirmText}>Aller à la Connexion</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   const handleEmailSignUp = async () => {
     if (!email || !password || !confirmPassword) {
@@ -145,32 +235,58 @@ export default function AuthScreen() {
       if (signUpError) {
         console.error('❌ [AuthScreen] Erreur d\'inscription:', signUpError);
         
+        // Handle existing auth account
         if (signUpError.message?.includes('already registered') || 
-            signUpError.message?.includes('User already registered')) {
-          setError('Ce compte existe déjà. Essayez de vous connecter.');
+            signUpError.message?.includes('User already registered') ||
+            signUpError.message?.includes('email_exists')) {
+          console.log('⚠️ [AuthScreen] Compte d\'authentification déjà existant');
           setLoading(false);
+          
+          showCustomAlert(
+            'Compte Existant',
+            `Un compte avec cet email existe déjà.\n\nVeuillez vous connecter.`,
+            () => {
+              setIsSignUp(false);
+              setError(null);
+              setPassword('');
+              setConfirmPassword('');
+              setPhone('');
+            },
+            () => {
+              setError(null);
+            }
+          );
           return;
         }
         
-        throw signUpError;
+        // Show user-friendly error
+        setError('Impossible de s\'inscrire. Veuillez réessayer.');
+        setLoading(false);
+        return;
       }
 
       console.log('✅ [AuthScreen] Utilisateur créé:', authData.user?.id);
 
       if (authData.user) {
         try {
-          await createUserProfile(
+          const profileResult = await createUserProfile(
             authData.user.id, 
             email, 
             phone
           );
+
+          // ✅ CHECK IF PROFILE CREATION SHOWED ALERT
+          if (profileResult && profileResult.duplicate === true) {
+            // Alert was already shown, don't continue
+            return;
+          }
           
-          console.log('🎉 [AuthScreen] Signup complete');
+          console.log('🎉 [AuthScreen] Inscription complète');
           
           if (authData.session) {
-            console.log('✅ [AuthScreen] Logged in immediately');
+            console.log('✅ [AuthScreen] Connecté immédiatement');
           } else {
-            console.log('📧 [AuthScreen] Email confirmation required');
+            console.log('📧 [AuthScreen] Confirmation d\'email requise');
             setEmailSent(true);
           }
           
@@ -186,7 +302,7 @@ export default function AuthScreen() {
       }
     } catch (err) {
       console.error('❌ [AuthScreen] Erreur d\'inscription:', err);
-      setError(err.message || 'Impossible de s\'inscrire');
+      setError('Une erreur est survenue');
     } finally {
       setLoading(false);
     }
@@ -217,20 +333,20 @@ export default function AuthScreen() {
         } else if (signInError.message?.includes('Email not confirmed')) {
           setError('Veuillez confirmer votre email avant de vous connecter');
         } else {
-          setError(signInError.message || 'Impossible de se connecter');
+          setError('Impossible de se connecter');
         }
         setLoading(false);
         return;
       }
 
       console.log('✅ [AuthScreen] Connecté:', data.user.id);
-      console.log('🎉 [AuthScreen] Login complete');
+      console.log('🎉 [AuthScreen] Connexion complète');
       
       setEmail('');
       setPassword('');
     } catch (err) {
       console.error('❌ [AuthScreen] Erreur de connexion:', err);
-      setError(err.message || 'Impossible de se connecter');
+      setError('Une erreur est survenue');
     } finally {
       setLoading(false);
     }
@@ -241,8 +357,7 @@ export default function AuthScreen() {
       setLoading(true);
       setError(null);
 
-      console.log('🔑 [AuthScreen] Starting Google sign-in...');
-      console.log('🔗 [AuthScreen] Using redirect URI:', redirectUri);
+      console.log('🔑 [AuthScreen] Démarrage de la connexion Google...');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -257,178 +372,112 @@ export default function AuthScreen() {
       });
 
       if (error) {
-        console.error('❌ [AuthScreen] OAuth error:', error);
-        setError(`OAuth Error: ${error.message}`);
+        console.error('❌ [AuthScreen] Erreur OAuth:', error);
+        setError(`Erreur OAuth: ${error.message}`);
         setLoading(false);
         return;
       }
 
       if (!data?.url) {
-        console.error('❌ [AuthScreen] No OAuth URL returned');
-        setError('Google OAuth not configured. Please contact support.');
+        console.error('❌ [AuthScreen] Aucune URL OAuth');
+        setError('Google OAuth non configuré.');
         setLoading(false);
         return;
       }
 
-      console.log('🌐 [AuthScreen] OAuth URL received');
-      console.log('🌐 [AuthScreen] Opening browser...');
-      
+      console.log('🌐 [AuthScreen] Ouverture du navigateur...');
+
       const result = await WebBrowser.openAuthSessionAsync(
         data.url,
         redirectUri,
         { showInRecents: true }
       );
 
-      console.log('🔙 [AuthScreen] Browser result type:', result.type);
-
       if (result.type === 'success') {
-        console.log('✅ [AuthScreen] OAuth callback received');
-        
+        console.log('✅ [AuthScreen] Callback reçu');
+
         const { url } = result;
         const urlParts = url.split('#')[1] || url.split('?')[1];
 
         if (!urlParts) {
-          console.error('❌ [AuthScreen] No URL params in return URL');
-          setError('OAuth callback missing parameters');
+          console.error('❌ [AuthScreen] Pas de paramètres');
+          setError('Paramètres manquants');
           setLoading(false);
           return;
         }
 
         const params = new URLSearchParams(urlParts);
-        console.log('📋 [AuthScreen] Available params:', Array.from(params.keys()));
-        
         const code = params.get('code');
         const error_description = params.get('error_description');
         const error_code = params.get('error');
 
         if (error_description || error_code) {
-          console.error('❌ [AuthScreen] OAuth error:', error_description || error_code);
-          setError(`Authentication failed: ${error_description || error_code}`);
+          console.error('❌ [AuthScreen] Erreur OAuth:', error_description);
+          setError(`Authentification échouée`);
           setLoading(false);
           return;
         }
 
         if (code) {
-          console.log('🔐 [AuthScreen] Got authorization code, exchanging for session...');
-          
+          console.log('🔐 [AuthScreen] Échange du code...');
+
           const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
 
           if (sessionError) {
-            console.error('❌ [AuthScreen] Code exchange error:', sessionError);
-            setError(`Failed to complete sign-in: ${sessionError.message}`);
+            console.error('❌ [AuthScreen] Erreur d\'échange:', sessionError);
+            setError(`Erreur de connexion`);
             setLoading(false);
             return;
           }
 
           if (!sessionData?.session) {
-            console.error('❌ [AuthScreen] No session returned from code exchange');
-            setError('Failed to create session');
+            console.error('❌ [AuthScreen] Pas de session');
+            setError('Impossible de créer une session');
             setLoading(false);
             return;
           }
 
-          console.log('✅ [AuthScreen] Session created successfully');
+          console.log('✅ [AuthScreen] Session créée');
           const newUser = sessionData.session.user;
-          console.log('✅ [AuthScreen] User authenticated:', newUser.email);
 
           try {
-            const { data: existingProfile, error: checkError } = await supabase
+            const { data: existingProfile } = await supabase
               .from('users')
               .select('*')
               .eq('id', newUser.id)
               .maybeSingle();
 
-            if (checkError && checkError.code !== 'PGRST116') {
-              console.error('❌ [AuthScreen] Profile check error:', checkError);
-            }
-
             if (existingProfile) {
-              console.log('✅ [AuthScreen] Existing profile found - LOGIN complete');
+              console.log('✅ [AuthScreen] LOGIN avec profil existant');
             } else {
-              console.log('📝 [AuthScreen] New user - creating profile...');
-              await createUserProfile(newUser.id, newUser.email, null);
-              console.log('✅ [AuthScreen] Profile created - SIGNUP complete');
+              console.log('📝 [AuthScreen] SIGNUP - création du profil...');
+              const profileData = {
+                id: newUser.id,
+                email: newUser.email,
+                phone: null,
+                full_name: newUser.user_metadata?.full_name || null,
+                username: newUser.email?.split('@')[0] || 'user',
+                account_type: null,
+                avatar_url: newUser.user_metadata?.avatar_url || null,
+              };
+
+              await supabase
+                .from('users')
+                .insert([profileData])
+                .select();
             }
           } catch (profileErr) {
-            console.error('❌ [AuthScreen] Profile error:', profileErr);
-            try {
-              await createUserProfile(newUser.id, newUser.email, null);
-            } catch (createErr) {
-              console.error('❌ [AuthScreen] Failed to create profile:', createErr);
-            }
+            console.error('❌ [AuthScreen] Erreur profil:', profileErr);
           }
 
-          console.log('🎉 [AuthScreen] Google authentication complete!');
-          
-        } else {
-          const access_token = params.get('access_token');
-          const refresh_token = params.get('refresh_token');
-
-          if (access_token && refresh_token) {
-            console.log('🔐 [AuthScreen] Got tokens directly, setting session...');
-            
-            const { error: sessionError } = await supabase.auth.setSession({
-              access_token,
-              refresh_token,
-            });
-
-            if (sessionError) {
-              console.error('❌ [AuthScreen] Session error:', sessionError);
-              setError(`Session Error: ${sessionError.message}`);
-              setLoading(false);
-              return;
-            }
-
-            console.log('✅ [AuthScreen] Session set successfully');
-
-            const { data: { user: newUser }, error: userError } = await supabase.auth.getUser();
-
-            if (userError || !newUser) {
-              console.error('❌ [AuthScreen] User fetch error:', userError);
-              setError('Failed to get user information');
-              setLoading(false);
-              return;
-            }
-
-            console.log('✅ [AuthScreen] User authenticated:', newUser.email);
-
-            try {
-              const { data: existingProfile } = await supabase
-                .from('users')
-                .select('*')
-                .eq('id', newUser.id)
-                .maybeSingle();
-
-              if (existingProfile) {
-                console.log('✅ [AuthScreen] Existing profile - LOGIN');
-              } else {
-                console.log('📝 [AuthScreen] Creating profile...');
-                await createUserProfile(newUser.id, newUser.email, null);
-              }
-            } catch (err) {
-              console.error('❌ [AuthScreen] Profile error:', err);
-            }
-
-            console.log('🎉 [AuthScreen] Authentication complete!');
-          } else {
-            console.error('❌ [AuthScreen] No code or tokens in callback');
-            setError('Authentication failed - no credentials received');
-          }
+          console.log('🎉 [AuthScreen] Authentification Google complète!');
         }
-        
       } else if (result.type === 'cancel') {
-        console.log('⚠️ [AuthScreen] User cancelled sign-in');
-        setError('Google sign-in was cancelled');
-      } else if (result.type === 'dismiss') {
-        console.log('⚠️ [AuthScreen] Browser dismissed');
-        setError('Sign-in window was closed');
-      } else {
-        console.log('⚠️ [AuthScreen] Unknown result type:', result.type);
-        setError('An unexpected error occurred');
+        console.log('⚠️ [AuthScreen] Annulé');
       }
     } catch (err) {
-      console.error('❌ [AuthScreen] Exception:', err);
-      setError(err.message || 'Failed to sign in with Google');
+      console.error('❌ [AuthScreen] Erreur:', err);
+      setError(err.message || 'Impossible de se connecter avec Google');
     } finally {
       setLoading(false);
     }
@@ -518,54 +567,72 @@ export default function AuthScreen() {
               </View>
             )}
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, emailFocused && styles.inputContainerFocused]}>
               <TextInput
                 style={styles.input}
                 placeholder="Email"
                 placeholderTextColor={COLORS.gray400}
                 value={email}
                 onChangeText={setEmail}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
                 editable={!loading}
                 autoCapitalize="none"
                 keyboardType="email-address"
               />
             </View>
 
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, passwordFocused && styles.inputContainerFocused]}>
               <TextInput
                 style={styles.input}
                 placeholder="Mot de passe"
                 placeholderTextColor={COLORS.gray400}
                 value={password}
                 onChangeText={setPassword}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
                 editable={!loading}
-                secureTextEntry
+                secureTextEntry={!showPassword}
               />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+              >
+                <Text style={styles.eyeIconText}>{showPassword ? '○' : '●'}</Text>
+              </TouchableOpacity>
             </View>
 
             {isSignUp && (
               <>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputIcon}>🔒</Text>
+                <View style={[styles.inputContainer, confirmPasswordFocused && styles.inputContainerFocused]}>
                   <TextInput
                     style={styles.input}
                     placeholder="Confirmer le mot de passe"
                     placeholderTextColor={COLORS.gray400}
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
+                    onFocus={() => setConfirmPasswordFocused(true)}
+                    onBlur={() => setConfirmPasswordFocused(false)}
                     editable={!loading}
-                    secureTextEntry
+                    secureTextEntry={!showConfirmPassword}
                   />
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={styles.eyeIcon}
+                  >
+                    <Text style={styles.eyeIconText}>{showConfirmPassword ? '○' : '●'}</Text>
+                  </TouchableOpacity>
                 </View>
 
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputIcon}>📱</Text>
+                <View style={[styles.inputContainer, phoneFocused && styles.inputContainerFocused]}>
                   <TextInput
                     style={styles.input}
                     placeholder="Téléphone (optionnel)"
                     placeholderTextColor={COLORS.gray400}
                     value={phone}
                     onChangeText={setPhone}
+                    onFocus={() => setPhoneFocused(true)}
+                    onBlur={() => setPhoneFocused(false)}
                     editable={!loading}
                     keyboardType="phone-pad"
                   />
@@ -640,6 +707,8 @@ export default function AuthScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CustomAlertModal />
     </SafeAreaView>
   );
 }
@@ -664,9 +733,11 @@ const styles = StyleSheet.create({
   successMessage: { fontSize: 16, color: COLORS.gray600, textAlign: 'center', marginBottom: 32, lineHeight: 24, paddingHorizontal: 20 },
   backToLoginButton: { backgroundColor: COLORS.darkTeal1, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32 },
   backToLoginButtonText: { fontSize: 16, fontWeight: 'bold', color: COLORS.white },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.lightGray, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, height: 56 },
-  inputIcon: { fontSize: 20, marginRight: 12 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.lightGray, borderRadius: 12, paddingHorizontal: 16, marginBottom: 16, height: 56, borderWidth: 2, borderColor: 'transparent' },
+  inputContainerFocused: { borderColor: COLORS.darkTeal1, backgroundColor: COLORS.white },
   input: { flex: 1, fontSize: 16, color: COLORS.gray700 },
+  eyeIcon: { padding: 4, marginLeft: 8 },
+  eyeIconText: { fontSize: 16, color: COLORS.darkTeal1, fontWeight: '600' },
   forgotPassword: { alignSelf: 'flex-end', marginBottom: 24, marginTop: -8 },
   forgotPasswordText: { fontSize: 14, color: COLORS.darkTeal1, fontWeight: '600' },
   mainButton: { backgroundColor: COLORS.darkTeal1, borderRadius: 12, height: 56, justifyContent: 'center', alignItems: 'center', marginBottom: 24, shadowColor: COLORS.darkTeal2, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
@@ -683,4 +754,66 @@ const styles = StyleSheet.create({
   switchContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 },
   switchText: { fontSize: 14, color: COLORS.gray600 },
   switchLink: { fontSize: 14, color: COLORS.darkTeal1, fontWeight: 'bold' },
+
+  // ✅ Custom Alert Styles (Matching ProfileScreen)
+  customAlertOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  customAlertBox: { 
+    backgroundColor: COLORS.white, 
+    borderRadius: 16, 
+    padding: 24, 
+    width: '80%',
+    alignItems: 'center',
+    shadowColor: COLORS.darkTeal2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  customAlertTitle: { 
+    fontSize: 20, 
+    fontWeight: '700', 
+    color: COLORS.gray700,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  customAlertMessage: { 
+    fontSize: 15, 
+    color: COLORS.gray500,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  customAlertButtonContainer: { 
+    flexDirection: 'row', 
+    gap: 12, 
+    width: '100%' 
+  },
+  customAlertButton: { 
+    flex: 1, 
+    paddingVertical: 12, 
+    borderRadius: 10, 
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customAlertCancelButton: { 
+    backgroundColor: COLORS.gray200 
+  },
+  customAlertConfirmButton: { 
+    backgroundColor: COLORS.darkTeal1 
+  },
+  customAlertCancelText: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: COLORS.gray500 
+  },
+  customAlertConfirmText: { 
+    fontSize: 12, 
+    fontWeight: '600',
+    color: COLORS.white 
+  },
 });
